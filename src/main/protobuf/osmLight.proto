@@ -1,0 +1,15 @@
+message SimpleNode {
+	required int64 id = 1;
+	required uint32 latBase = 12;
+	required uint32 lonBase = 13;
+	required uint32 latRel = 10;
+	required uint32 lonRel = 11;
+	
+}
+
+message SimpleWay {
+	required int64 id = 1;
+	repeated int64 node = 2 [packed = true];
+}
+
+
