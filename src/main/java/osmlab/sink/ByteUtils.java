@@ -2,13 +2,20 @@ package osmlab.sink;
 
 public class ByteUtils {
 
-	public static short encodeLatLong(int lat, int lon) {
-		int latBts = ((lat << 1) & 0xfe) << 8;
-		int lonBits = ((lon) & 0x1ff);
+	public static int encodeLatLong(int lat, int lon) {
+		int mask = (lat & 0xff) << 9;
+		mask |= lon & 0x1ff;
 		
-		return (short) (latBts | lonBits); 
+		return mask;
 	}
 
+	public static int decodeLat(int latLon) {
+		return (latLon >> 9) & 0xff;
+	}
+
+	public static int decodeLon(int latLon) {
+		return latLon & 0x1ff;
+	}
 	
 	
 }
