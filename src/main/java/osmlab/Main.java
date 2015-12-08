@@ -15,7 +15,8 @@ public class Main {
 //		if(true) {
 //			return;
 //		}
-		String name = "saarland-latest.osm.pbf";
+		String name = "baden-wuerttemberg-latest.osm.pbf";
+		//String name = "saarland-latest.osm.pbf";
 				DataPreparer preparer = new DataPreparer();
 		preparer.prepareData(new File(name));
 	}

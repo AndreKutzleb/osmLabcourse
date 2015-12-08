@@ -16,6 +16,11 @@ public class ByteUtils {
 	public static int decodeLon(int latLon) {
 		return latLon & 0x1ff;
 	}
+
+	public static double reassembleDouble(int base, int fractions) {
+		double fraction = fractions / Math.pow(2, 16);
+		return base + fraction;
+	}
 	
 	
 }

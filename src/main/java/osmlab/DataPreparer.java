@@ -1,8 +1,6 @@
 package osmlab;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
@@ -14,14 +12,15 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+
+import net.sf.geographiclib.Geodesic;
+import net.sf.geographiclib.GeodesicData;
 
 import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
 
@@ -47,25 +46,25 @@ public class DataPreparer {
 				inputFile.getName().indexOf('.'));
 		new File(fileName).mkdir();
 		String waysFile = fileName + File.separator + fileName + ".ways.pbf";
-		 {
-		 LongOpenHashSet highwayNodes = new LongOpenHashSet();
-		
-		 // set of all highwaynodes and filtering and saving all ways in own
-		 // format
-		 cacheHighwayNodesAndWriteHighwaysToDisk(waysFile, highwayNodes,
-		 new FileInputStream(inputFile));
-		
-		 // reading all nodes, filtering those who are in the set of highway
-		 // nodes, and saving them in segmented format.
-		 segmentAndSaveAllHighwayNodesWithCoordinates(fileName,
-		 highwayNodes, inputFile);
-		
-		 // sort the nodes by id in each segment file
-		 SimpleNode[][] segmentedSortedNodes = sortSegmentFiles(fileName);
-		
-		 createPairwiseWays(segmentedSortedNodes, waysFile, fileName);
-		 }
-		 createOffsetData(fileName);
+		{
+			LongOpenHashSet highwayNodes = new LongOpenHashSet();
+
+			// set of all highwaynodes and filtering and saving all ways in own
+			// format
+			cacheHighwayNodesAndWriteHighwaysToDisk(waysFile, highwayNodes,
+					new FileInputStream(inputFile));
+
+			// reading all nodes, filtering those who are in the set of highway
+			// nodes, and saving them in segmented format.
+			segmentAndSaveAllHighwayNodesWithCoordinates(fileName,
+					highwayNodes, inputFile);
+
+			// sort the nodes by id in each segment file
+			SimpleNode[][] segmentedSortedNodes = sortSegmentFiles(fileName);
+
+			createPairwiseWays(segmentedSortedNodes, waysFile, fileName);
+		}
+		createOffsetData(fileName);
 
 		condenseOffsetDataAndCreateOffsetArray(fileName);
 
@@ -88,29 +87,31 @@ public class DataPreparer {
 			offsets.add(0);
 			try (DataInputStream dos = new DataInputStream(
 					new ByteArrayInputStream(readAllBytes));
-					ObjectOutputStream offsetOut = new ObjectOutputStream(new FileOutputStream(
-							f.getAbsolutePath() + ".offset"));
-					ObjectOutputStream dataOut = new ObjectOutputStream(new FileOutputStream(
-							f.getAbsolutePath() + ".final"))) {
+					ObjectOutputStream offsetOut = new ObjectOutputStream(
+							new FileOutputStream(f.getAbsolutePath()
+									+ ".offset"));
+					ObjectOutputStream dataOut = new ObjectOutputStream(
+							new FileOutputStream(f.getAbsolutePath() + ".final"))) {
 				while (dos.available() > 0) {
 					OffsetData data = OffsetData.parseDelimitedFrom(dos);
 					byte[] encoded = Cartographer.encodeOffsetData(data);
 					dataBuffer.put(encoded);
-					offsets.add(offsets.get(offsets.size()-1)+ encoded.length);
+					offsets.add(offsets.get(offsets.size() - 1)
+							+ encoded.length);
 				}
-				
+
 				int[] offsetArray = new int[offsets.size()];
-				for(int i = 0; i < offsetArray.length ; i++) {
+				for (int i = 0; i < offsetArray.length; i++) {
 					offsetArray[i] = offsets.get(i);
 				}
 				byte[] dataArray = new byte[dataBuffer.position()];
 				dataBuffer.flip();
 
 				dataBuffer.get(dataArray, 0, dataArray.length);
-				
+
 				offsetOut.writeObject(offsetArray);
 				dataOut.writeObject(dataArray);
-								
+
 			}
 
 		}
@@ -184,113 +185,7 @@ public class DataPreparer {
 				}
 				builder.build().writeDelimitedTo(dataOut);
 			}
-			// // TODO save last one
-			//
-			// int[] offsetArray = new int[maxId + 2]; // TODO WTF?
-			// System.out.println("maxId: " + maxId);
-			//
-			// // count number of neighbours for each index, temporarily store
-			// in
-			// // offset array
-			// try (DataInputStream dos = new DataInputStream(
-			// new ByteArrayInputStream(readAllBytes))) {
-			// while (dos.available() > 0) {
-			//
-			// if (id + 1 < offsetArray.length) {
-			// offsetArray[id + 1] += crossSegment ? 7 : 4;
-			//
-			// }
-			// }
-			// }
-			// // offsets
-			//
-			// for (int i = 1; i < offsetArray.length; i++) {
-			// offsetArray[i] += offsetArray[i - 1];
-			//
-			// }
-			// for (int i = 1; i < offsetArray.length; i++) {
-			// offsetArray[i] += i * 4;
-			// }
-			//
-			// System.out.println(offsetArray[0]);
-			// System.out.println(offsetArray[offsetArray.length - 2]);
-			// System.out.println(offsetArray[offsetArray.length - 1]);
-			//
-			// int[] neighbourIndex = new int[offsetArray.length];
-			// Arrays.fill(neighbourIndex, 4);
-			//
-			// int bytes = offsetArray[offsetArray.length - 1];
-			// System.out.println("dataArraySize=" + bytes);
-			// ByteBuffer dataArray = ByteBuffer.allocate(bytes);
-			//
-			// try (DataInputStream dos = new DataInputStream(
-			// new ByteArrayInputStream(readAllBytes))) {
-			// while (dos.available() > 0) {
-			// int id = Byte.toUnsignedInt(dos.readByte()) << 16
-			// | Short.toUnsignedInt(dos.readShort());
-			// dataArray.position(offsetArray[id]);
-			//
-			// // always overwrite lat / lon offset
-			// dataArray.putShort(dos.readShort()); // lat offset
-			// dataArray.putShort(dos.readShort()); // lon offset
-			//
-			// // move pointer to current neighbour position(some
-			// // neighbours may be present already)
-			// dataArray.position(offsetArray[id] + neighbourIndex[id]);
-			//
-			// // copy flags (pedestrian, automobile, speed, crossSegment)
-			// byte flags = dos.readByte();
-			// boolean crossSegment = (Byte.toUnsignedInt(flags) & 1) > 0;
-			// dataArray.put(flags);
-			//
-			// // copy over id this connection leads to
-			// int idConnectedTo = Byte.toUnsignedInt(dos.readByte()) << 16
-			// | Short.toUnsignedInt(dos.readShort());
-			// if (id < 100) {
-			// System.out.println(id + " -> " + idConnectedTo);
-			// }
-			// dataArray.put((byte) (idConnectedTo >>> 16));
-			// dataArray.putShort((short) idConnectedTo);
-			//
-			// // if crossSegment, copy over lat/lon of that section
-			// if (crossSegment) {
-			// dataArray.put(dos.readByte());
-			// dataArray.putShort(dos.readShort());
-			//
-			// }
-			// neighbourIndex[id] += crossSegment ? 7 : 4;
-			// }
-			// }
-			//
-			// // for(int i = 0; i < 100; i++) {
-			// // System.out.println(offsetArray[i]);
-			// // }
-			// dataArray.rewind();
-			// // ByteBuffer bb = ByteBuffer.allocateDirect(offsetArray.length
-			// // * Integer.BYTES);
-			// // bb.order(ByteOrder.nativeOrder()); // endian must be set
-			// before
-			// // // putting ints into the buffer
-			// // IntBuffer intB = bb.asIntBuffer();
-			// // intB.put(offsetArray);
-			// // System.out.println(offsetArray[0]);
-			//
-			// try (ObjectOutputStream offsetOut = new ObjectOutputStream(
-			// new FileOutputStream(offsetFile));
-			// ObjectOutputStream dataOut = new ObjectOutputStream(
-			// new FileOutputStream(dataFile));) {
-			// offsetOut.writeObject(offsetArray);
-			// dataOut.writeObject(dataArray.array());
-			// }
-			// // try (FileOutputStream offsetStream = new FileOutputStream(
-			// // offsetFile);
-			// // FileOutputStream dataStream = new FileOutputStream(dataFile))
-			// {
-			// //
-			// // while(bb.hasRemaining())offsetStream.getChannel().write(bb);
-			// //
-			// while(dataArray.hasRemaining())dataStream.getChannel().write(dataArray);
-			// // }
+
 
 		}
 	}
@@ -320,14 +215,36 @@ public class DataPreparer {
 				long id = way.getNodeList().get(i);
 				NewIdNode curNode = findNodeData(id, segmentedSortedNodes,
 						prevNode.getLatLonBase());
+				
 				// TODO speed, pedestrian, car
+				double prevLat = ByteUtils.reassembleDouble(
+						ByteUtils.decodeLat(prevNode.getLatLonBase()),
+						prevNode.getLatOffset()) - 90;
+				double prevLon = ByteUtils.reassembleDouble(
+						ByteUtils.decodeLon(prevNode.getLatLonBase()),
+						prevNode.getLonOffset()) - 180;
+
+				double currLat = ByteUtils.reassembleDouble(
+						ByteUtils.decodeLat(curNode.getLatLonBase()),
+						curNode.getLatOffset()) - 90;
+				double currLon = ByteUtils.reassembleDouble(
+						ByteUtils.decodeLon(curNode.getLatLonBase()),
+						curNode.getLonOffset()) - 180;
+
+				GeodesicData g = Geodesic.WGS84.Inverse(prevLat, prevLon,
+						currLat, currLon);
+				int distance = Math.max(1,(int) Math.round(g.s12));
+				if (distance > Math.pow(2, 16)) {
+					throw new IllegalArgumentException(
+							"distance between two nodes too large(> 2^16)");
+				}
 
 				Neighbour.Builder toCurrent = Neighbour.newBuilder()
 						.setCar(true).setPedestrian(true).setSpeed(16)
-						.setIdOfNode(curNode.getNewId());
+						.setDistance(distance).setIdOfNode(curNode.getNewId());
 
 				Neighbour.Builder toPrev = Neighbour.newBuilder().setCar(true)
-						.setPedestrian(true).setSpeed(16)
+						.setPedestrian(true).setSpeed(16).setDistance(distance)
 						.setIdOfNode(prevNode.getNewId());
 
 				if (prevNode.getLatLonBase() != curNode.getLatLonBase()) {
@@ -404,30 +321,7 @@ public class DataPreparer {
 
 			}
 		}
-		// try N,E,S,W
-		// int lat = ByteUtils.decodeLat(mostLikelyLatLon);
-		// int lon = ByteUtils.decodeLon(mostLikelyLatLon);
 
-		// int[] latLons = new int[4];
-		// latLons[0] = ByteUtils.encodeLatLong(lat + 1, lon);
-		// latLons[1] = ByteUtils.encodeLatLong(lat, lon + 1);
-		// latLons[2] = ByteUtils.encodeLatLong(lat - 1, lon);
-		// latLons[3] = ByteUtils.encodeLatLong(lat, lon - 1);
-		//
-		// for (int i = 0; i < 4; i++) {
-		// if (latLons[i] >= 0 && latLons[i] <= Main.SEGMENTS) {
-		// if (segmentedSortedNodes[latLons[i]] != null) {
-		// NewIdNode nodePos = binarySearch(id,
-		// segmentedSortedNodes[latLons[i]], latLons[i]);
-		// if (nodePos != null) {
-		// System.out.println("found in neighbours!");
-		// return nodePos;
-		//
-		// }
-		//
-		// }
-		// }
-		// }
 
 		for (int i = 0; i < segmentedSortedNodes.length; i++) {
 			SimpleNode[] nodes = segmentedSortedNodes[i];
@@ -562,96 +456,6 @@ public class DataPreparer {
 
 	}
 
-	// public static void merge(File ways, File nodes, File onlyRequiredNodes)
-	// throws FileNotFoundException, IOException {
-	// try (FileInputStream waysReader = new FileInputStream(ways);
-	// FileInputStream nodesReader = new FileInputStream(nodes);
-	// FileOutputStream onlyRequiredNodesWriter = new FileOutputStream(
-	// onlyRequiredNodes);) {
-	//
-	// Set<Long> nodesOfHighways = new HashSet<>();
-	// while (true) {
-	// OsmLight.SimpleWay simpleWay = OsmLight.SimpleWay
-	// .parseDelimitedFrom(waysReader);
-	// if (simpleWay == null) {
-	// break;
-	// }
-	// for (Long node : simpleWay.getNodeList()) {
-	// nodesOfHighways.add(node);
-	// nodesOfHighwayss++;
-	// }
-	// }
-	//
-	// Map<Short, List<OsmLight.SimpleNode>> allNodes = new HashMap<>();
-	// for (int i = 0; i < 120 * 360; i++) {
-	// allNodes.put((short) i, new ArrayList<>());
-	// }
-	// while (true) {
-	// OsmLight.SimpleNode simplenode = OsmLight.SimpleNode
-	// .parseDelimitedFrom(nodesReader);
-	// if (simplenode == null) {
-	// break;
-	// }
-	// if (nodesOfHighways.contains(simplenode.getId())) {
-	// uniqueNodesOfHighwayss++;
-	// short encodedLonLat = ByteUtils.encodeLatLong(
-	// simplenode.getLatBase(), simplenode.getLonBase());
-	// allNodes.get(encodedLonLat).add(simplenode);
-	// }
-	// }
-	//
-	// Cartographer cartographer = new Cartographer();
-	//
-	// System.out.println("nodes of highways       : " + nodesOfHighwayss);
-	// System.out.println("unique nodes of highways: "
-	// + uniqueNodesOfHighwayss);
-	//
-	// }
-	//
-	// }
-
-	// int[][] offsets = new int[360 * 120][];
-	// byte[][] info = new byte[360 * 120][];
-	// public static void main(String[] args) throws IOException,
-	// URISyntaxException {
-
-	// parseProtobuf(
-	// new URL(
-	// "http://download.geofabrik.de/europe/andorra-latest.osm.pbf")
-	// .openStream(), OsmLight.SimpleWay.PARSER, way -> {
-	// });
-
-	// 12 -> 16 16 -> 012, 0
-	// 2 byte prefix encodes lat, long (7 bit lat, 9 bit lon)
-	// collect ALL data necessary for map. sort by id per segment.
-	// translate id to offset inside. have 2^30 ids left.
-	// make resulting array only long enough to fit amount of actual nodes.
-	// eg 256 nodes -> 16 bit lat/lon + 8 bit/length.
-	// point to offset instead of ID
-	//
-	// access 5.56,76.54 (5670)
-	// data[576][offset[576][0]] ... data[576][offset[576][1 || max]] -1
-	//
-	// String url = "http://download.geofabrik.de/europe/" + name +
-	// ".osm.pbf";
-
-	// openStream = new URL(url).openStream();
-
-	// dos.readInt(); // skip lat/lon offset
-	// /**
-	// * connectionEncoding
-	// *
-	// * 1 pedestrian 1 automobile 5 speed 1 cross-segment 24 ID
-	// * 24 latLon (optional, if cross-segment)
-	// */
-	// boolean crossSegment = (Byte.toUnsignedInt(dos.readByte()) & 1) > 0;
-	// if (crossSegment) {
-	// dos.readShort(); // skip latLon
-	// dos.readByte(); // skip latLon
-	// }
-	// dos.readShort(); // skip ID 2/3
-	// dos.readByte(); // skip ID 3/3
-	// }
 
 	public static <T> void parseProtobuf(InputStream in, Parser<T> parser,
 			Consumer<T> action) throws IOException {

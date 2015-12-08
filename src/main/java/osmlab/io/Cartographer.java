@@ -72,8 +72,20 @@ public class Cartographer implements AutoCloseable {
 	}
 	
 	
+	/**
+	 * connectionEncoding
+	 * 
+	 * 1 pedestrian
+	 * 1 automobile
+	 * 5 speed
+	 * 1 cross-segment
+	 * 24 ID
+	 * 16 distance
+	 * 24 latLon (optional, if cross-segment)
+	 */
+
 	public static byte[] encodeOffsetData(OffsetData data) {
-		int neighboursize = data.getNeighbourList().stream().mapToInt(n -> n.hasLatLonOfSegment() ? 7 : 4).sum();
+		int neighboursize = data.getNeighbourList().stream().mapToInt(n -> n.hasLatLonOfSegment() ? 9 : 6).sum();
 		byte[] raw = new byte[4+neighboursize];
 		ByteBuffer buffer = ByteBuffer.wrap(raw);
 		
@@ -87,11 +99,17 @@ public class Cartographer implements AutoCloseable {
 			mask|= ((n.getSpeed() & 0x1f) << 1);
 			mask|= n.hasLatLonOfSegment() ? 0x01 : 0;
 			
+			// write metadata
 			buffer.put((byte) mask);
 			
+			// write ID
 			buffer.put((byte) (n.getIdOfNode() >>> 16));
 			buffer.putShort((short) n.getIdOfNode());
 			
+			// distance
+			buffer.putShort((short) n.getDistance());
+			
+			// link to other segment
 			if(n.hasLatLonOfSegment()) {
 				buffer.put((byte) (n.getLatLonOfSegment() >>> 16));
 				buffer.putShort((short) n.getLatLonOfSegment());
@@ -101,58 +119,7 @@ public class Cartographer implements AutoCloseable {
 		return raw;
 	}
 	
-	/**
-	 * connectionEncoding
-	 * 
-	 * 1 pedestrian
-	 * 1 automobile
-	 * 5 speed
-	 * 1 cross-segment
-	 * 24 ID
-	 * 24 latLon (optional, if cross-segment)
-	 */
-	public static class ConnectionDetails {
-		public final boolean pedestrian;
-		public final boolean automobile;
-		public final byte speedLimit; // 0-32
-		public final boolean crossesSegment;
-		public final int id; // 0-2^24
-		public final int latLon;
-		
-		public ConnectionDetails(boolean pedestrian, boolean automobile,
-				byte speedLimit, boolean crossesSegment, int id, int latLon) {
-			this.pedestrian = pedestrian;
-			this.automobile = automobile;
-			this.speedLimit = speedLimit;
-			this.crossesSegment = crossesSegment;
-			this.id = id;
-			this.latLon = latLon;
-		}
-		
-		public void writeToStream(DataOutputStream dos) throws IOException {
-			int mask = 0;
-			mask|= pedestrian ? 0x80 : 0;
-			mask|= automobile ? 0x40 : 0;
-			mask|= ((speedLimit & 0x1f) << 1);
-			mask|= crossesSegment ? 0x01 : 0;
-			
-			dos.writeByte(mask);
-			// write 3 bytes of id 
-			dos.writeByte(id >>> 16);
-			dos.writeByte(id >>> 8);
-			dos.writeByte(id);
-			
-			if(crossesSegment) {
-				dos.writeByte(latLon >>> 16);
-				dos.writeByte(latLon >>> 8);
-				dos.writeByte(latLon);				
-			}
 
-			
-		}
-		
-		
-	}
 	
 	// PairwiseConnection
 	// 24 sourceId
