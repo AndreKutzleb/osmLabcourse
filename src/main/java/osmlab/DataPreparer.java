@@ -1,6 +1,7 @@
 package osmlab;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,7 +9,11 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,12 +22,14 @@ import java.util.function.Consumer;
 import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
 
 import osmlab.io.Cartographer;
-import osmlab.io.Cartographer.ConnectionDetails;
-import osmlab.io.Cartographer.SimpleNode;
 import osmlab.io.HighwayNodeSegmenter;
 import osmlab.io.HighwayNodeSink;
+import osmlab.proto.OsmLight.Neighbour;
+import osmlab.proto.OsmLight.NewIdNode;
+import osmlab.proto.OsmLight.OffsetData;
+import osmlab.proto.OsmLight.PairConnection;
+import osmlab.proto.OsmLight.SimpleNode;
 import osmlab.proto.OsmLight.SimpleWay;
-import osmlab.sink.ByteUtils;
 
 import com.carrotsearch.hppc.LongOpenHashSet;
 import com.google.protobuf.Parser;
@@ -35,29 +42,205 @@ public class DataPreparer {
 				inputFile.getName().indexOf('.'));
 		new File(fileName).mkdir();
 		String waysFile = fileName + File.separator + fileName + ".ways.pbf";
+//		{
+//			LongOpenHashSet highwayNodes = new LongOpenHashSet();
+//
+//			// set of all highwaynodes and filtering and saving all ways in own
+//			// format
+//			cacheHighwayNodesAndWriteHighwaysToDisk(waysFile, highwayNodes,
+//					new FileInputStream(inputFile));
+//
+//			// reading all nodes, filtering those who are in the set of highway
+//			// nodes, and saving them in segmented format.
+//			segmentAndSaveAllHighwayNodesWithCoordinates(fileName,
+//					highwayNodes, inputFile);
+//
+//			// sort the nodes by id in each segment file
+			SimpleNode[][] segmentedSortedNodes = sortSegmentFiles(fileName);
+//
+			createPairwiseWays(segmentedSortedNodes, waysFile, fileName);
+//		}
+		createMainArrayAndOffsetArray(fileName);
 
-		LongOpenHashSet highwayNodes = new LongOpenHashSet();
-
-		// set of all highwaynodes and filtering and saving all ways in own
-		// format
-		cacheHighwayNodesAndWriteHighwaysToDisk(waysFile, highwayNodes,
-				new FileInputStream(inputFile));
-
-		// reading all nodes, filtering those who are in the set of highway
-		// nodes, and saving them in segmented format.
-		segmentAndSaveAllHighwayNodesWithCoordinates(fileName, highwayNodes,
-				inputFile);
-
-		// sort the nodes by id in each segment file
-		long[][] segmentedSortedNodes = sortSegmentFiles(fileName);
-
-		createSegmentOverlappingNodeFile(segmentedSortedNodes, waysFile,
-				fileName);
 	}
+	private void createMainArrayAndOffsetArray(String fileName)
+			throws FileNotFoundException, IOException {
+		File pairFolder = new File(fileName + File.separator
+				+ "pairwiseConnections");
 
-	private void createSegmentOverlappingNodeFile(
-			long[][] segmentedSortedNodes, String waysFile, String mapName)
-			throws IOException {
+		File dataFolder = new File(fileName + File.separator + "data");
+		dataFolder.mkdir();
+
+		File[] files = pairFolder.listFiles(file -> file.getName().endsWith(
+				".pairs"));
+
+		List<PairConnection> pairs = new ArrayList<>();
+
+		for (File f : files) {
+			byte[] readAllBytes = Files.readAllBytes(f.toPath());
+
+			try (DataInputStream dos = new DataInputStream(
+					new ByteArrayInputStream(readAllBytes))) {
+				while (dos.available() > 0) {
+					PairConnection pair = PairConnection
+							.parseDelimitedFrom(dos);
+					pairs.add(pair);
+				}
+			}
+
+			pairs.sort((a, b) -> Integer.compare(a.getId(), b.getId()));
+			// pairs.stream().collect(collector)
+
+			PairConnection previous = pairs.get(0);
+			OffsetData.Builder builder = OffsetData.newBuilder()
+					.setLatOffset(previous.getLatOffset())
+					.setLonOffset(previous.getLonOffset())
+					.addNeighbour(previous.getNeighbour());
+
+
+			File dataFile = new File(dataFolder.getAbsolutePath()
+					+ File.separator
+					+ f.getName().substring(0, f.getName().indexOf('.'))
+					+ ".data");
+
+			try (FileOutputStream dataOut = new FileOutputStream(dataFile);) {
+
+				int id = 0;
+				for (int index = 1; index < pairs.size(); index++) {
+					PairConnection current = pairs.get(index);
+					if (previous.getId() != current.getId()) {
+						// wrap up previous
+						OffsetData data = builder.build();
+							if(id < 100) {
+								System.out.print(id +" : ");
+								for(Neighbour n : data.getNeighbourList()) {
+									System.out.print(n.getIdOfNode() +", ");
+								}
+								System.out.println();
+							}
+						data.writeDelimitedTo(dataOut);
+										id++;
+						builder = OffsetData.newBuilder()
+								.setLatOffset(current.getLatOffset())
+								.setLonOffset(current.getLonOffset())
+								.addNeighbour(current.getNeighbour());
+						
+						
+					} else {
+						builder.addNeighbour(current.getNeighbour());
+					}
+					previous = current;
+				}
+				builder.build().writeDelimitedTo(dataOut);
+			}
+//			// TODO save last one
+//
+//			int[] offsetArray = new int[maxId + 2]; // TODO WTF?
+//			System.out.println("maxId: " + maxId);
+//
+//			// count number of neighbours for each index, temporarily store in
+//			// offset array
+//			try (DataInputStream dos = new DataInputStream(
+//					new ByteArrayInputStream(readAllBytes))) {
+//				while (dos.available() > 0) {
+//
+//					if (id + 1 < offsetArray.length) {
+//						offsetArray[id + 1] += crossSegment ? 7 : 4;
+//
+//					}
+//				}
+//			}
+//			// offsets
+//
+//			for (int i = 1; i < offsetArray.length; i++) {
+//				offsetArray[i] += offsetArray[i - 1];
+//
+//			}
+//			for (int i = 1; i < offsetArray.length; i++) {
+//				offsetArray[i] += i * 4;
+//			}
+//
+//			System.out.println(offsetArray[0]);
+//			System.out.println(offsetArray[offsetArray.length - 2]);
+//			System.out.println(offsetArray[offsetArray.length - 1]);
+//
+//			int[] neighbourIndex = new int[offsetArray.length];
+//			Arrays.fill(neighbourIndex, 4);
+//
+//			int bytes = offsetArray[offsetArray.length - 1];
+//			System.out.println("dataArraySize=" + bytes);
+//			ByteBuffer dataArray = ByteBuffer.allocate(bytes);
+//
+//			try (DataInputStream dos = new DataInputStream(
+//					new ByteArrayInputStream(readAllBytes))) {
+//				while (dos.available() > 0) {
+//					int id = Byte.toUnsignedInt(dos.readByte()) << 16
+//							| Short.toUnsignedInt(dos.readShort());
+//					dataArray.position(offsetArray[id]);
+//
+//					// always overwrite lat / lon offset
+//					dataArray.putShort(dos.readShort()); // lat offset
+//					dataArray.putShort(dos.readShort()); // lon offset
+//
+//					// move pointer to current neighbour position(some
+//					// neighbours may be present already)
+//					dataArray.position(offsetArray[id] + neighbourIndex[id]);
+//
+//					// copy flags (pedestrian, automobile, speed, crossSegment)
+//					byte flags = dos.readByte();
+//					boolean crossSegment = (Byte.toUnsignedInt(flags) & 1) > 0;
+//					dataArray.put(flags);
+//
+//					// copy over id this connection leads to
+//					int idConnectedTo = Byte.toUnsignedInt(dos.readByte()) << 16
+//							| Short.toUnsignedInt(dos.readShort());
+//					if (id < 100) {
+//						System.out.println(id + " -> " + idConnectedTo);
+//					}
+//					dataArray.put((byte) (idConnectedTo >>> 16));
+//					dataArray.putShort((short) idConnectedTo);
+//
+//					// if crossSegment, copy over lat/lon of that section
+//					if (crossSegment) {
+//						dataArray.put(dos.readByte());
+//						dataArray.putShort(dos.readShort());
+//
+//					}
+//					neighbourIndex[id] += crossSegment ? 7 : 4;
+//				}
+//			}
+//
+//			// for(int i = 0; i < 100; i++) {
+//			// System.out.println(offsetArray[i]);
+//			// }
+//			dataArray.rewind();
+//			// ByteBuffer bb = ByteBuffer.allocateDirect(offsetArray.length
+//			// * Integer.BYTES);
+//			// bb.order(ByteOrder.nativeOrder()); // endian must be set before
+//			// // putting ints into the buffer
+//			// IntBuffer intB = bb.asIntBuffer();
+//			// intB.put(offsetArray);
+//			// System.out.println(offsetArray[0]);
+//
+//			try (ObjectOutputStream offsetOut = new ObjectOutputStream(
+//					new FileOutputStream(offsetFile));
+//					ObjectOutputStream dataOut = new ObjectOutputStream(
+//							new FileOutputStream(dataFile));) {
+//				offsetOut.writeObject(offsetArray);
+//				dataOut.writeObject(dataArray.array());
+//			}
+//			// try (FileOutputStream offsetStream = new FileOutputStream(
+//			// offsetFile);
+//			// FileOutputStream dataStream = new FileOutputStream(dataFile)) {
+//			//
+//			// while(bb.hasRemaining())offsetStream.getChannel().write(bb);
+//			// while(dataArray.hasRemaining())dataStream.getChannel().write(dataArray);
+//			// }
+
+		}
+	}
+	private void createPairwiseWays(SimpleNode[][] segmentedSortedNodes,
+			String waysFile, String mapName) throws IOException {
 		try (Cartographer cartographer = new Cartographer(mapName)) {
 
 			AtomicInteger nodesHandled = new AtomicInteger(0);
@@ -73,26 +256,56 @@ public class DataPreparer {
 
 	}
 
-	private void handleWay(SimpleWay way, long[][] segmentedSortedNodes,
+	private void handleWay(SimpleWay way, SimpleNode[][] segmentedSortedNodes,
 			Cartographer cartographer) {
 		if (way.getNodeCount() > 1) {
-			NodePos prevNode = findNodeData(way.getNode(0),
+			NewIdNode prevNode = findNodeData(way.getNode(0),
 					segmentedSortedNodes);
-			for (int i = 0; i < way.getNodeCount(); i++) {
+			for (int i = 1; i < way.getNodeCount(); i++) {
 				long id = way.getNodeList().get(i);
-				NodePos curNode = findNodeData(id, segmentedSortedNodes);
-
+				NewIdNode curNode = findNodeData(id, segmentedSortedNodes);
 				// TODO speed, pedestrian, car
-				ConnectionDetails prevToNow = new ConnectionDetails(true, true,
-						(byte) 30, prevNode.latLonBase != curNode.latLonBase,
-						curNode.index, curNode.latLonBase);
-				ConnectionDetails nowToPrev = new ConnectionDetails(true, true,
-						(byte) 30, prevNode.latLonBase != curNode.latLonBase,
-						prevNode.index, prevNode.latLonBase);
 
+				Neighbour.Builder toCurrent = Neighbour.newBuilder()
+						.setCar(true).setPedestrian(true).setSpeed(16)
+						.setIdOfNode(curNode.getNewId());
+
+				Neighbour.Builder toPrev = Neighbour.newBuilder().setCar(true)
+						.setPedestrian(true).setSpeed(16)
+						.setIdOfNode(prevNode.getNewId());
+
+				if (prevNode.getLatLonBase() != curNode.getLatLonBase()) {
+					toCurrent.setLatLonOfSegment(curNode.getLatLonBase());
+					toPrev.setLatLonOfSegment(prevNode.getLatLonBase());
+
+				}
+				
+	
+
+				PairConnection toCurrentConnection = PairConnection
+						.newBuilder().setId(prevNode.getNewId())
+						.setLatOffset(prevNode.getLatOffset())
+						.setLonOffset(prevNode.getLonOffset())
+						.setNeighbour(toCurrent).build();
+
+				PairConnection toPrevConnection = PairConnection.newBuilder()
+						.setId(curNode.getNewId())
+						.setLatOffset(curNode.getLatOffset())
+						.setLonOffset(curNode.getLonOffset())
+						.setNeighbour(toPrev).build();
+
+				if(toCurrentConnection.getId() < 100) {
+					// System.out.println(toCurrentConnection.getId() +" -> " +
+					// toCurrentConnection.getNeighbour().getIdOfNode());
+					// System.out.println(toPrevConnection.getId() +" -> " + toPrevConnection.getNeighbour().getIdOfNode());
+					
+				}
+				
 				try {
-					cartographer.writePairwiseConnection(prevNode, prevToNow);
-					cartographer.writePairwiseConnection(curNode, nowToPrev);
+					cartographer.writePairwiseConnection(
+							prevNode.getLatLonBase(), toCurrentConnection);
+					cartographer.writePairwiseConnection(
+							curNode.getLatLonBase(), toPrevConnection);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -102,32 +315,33 @@ public class DataPreparer {
 
 	}
 
-	public static class NodePos {
-		public final int latLonBase;
-		public final int index;
-		public final int latOffset;
-		public final int lonOffset;
-
-		public NodePos(int latOffset, int lonOffset, int latLonBase, int index) {
-			this.latOffset = latOffset;
-			this.lonOffset = lonOffset;
-			this.latLonBase = latLonBase;
-			this.index = index;
-		}
-
-		public static NodePos parseFrom(long[] nodes, int middle, int latLonBase) {
-			int lat = (int) (nodes[middle + 1] >>> 32);
-			int lon = (int) nodes[middle + 1];
-			return new NodePos(lat, lon, latLonBase, middle);
-		}
-	}
+	// public static class NodePos {
+	// public final int latLonBase;
+	// public final int index;
+	// public final int latOffset;
+	// public final int lonOffset;
+	//
+	// public NodePos(int latOffset, int lonOffset, int latLonBase, int index) {
+	// this.latOffset = latOffset;
+	// this.lonOffset = lonOffset;
+	// this.latLonBase = latLonBase;
+	// this.index = index;
+	// }
+	//
+	// public static NodePos parseFrom(SimpleNode[] nodes, int middle, int
+	// latLonBase) {
+	// int lat = (int) (nodes[middle].getLatOffset());
+	// int lon = (int) nodes[middle].getLonOffset();
+	// return new NodePos(lat, lon, latLonBase, middle);
+	// }
+	// }
 
 	// search for 64 bit id, get index of id in segment, as well as lat and lon.
-	private NodePos findNodeData(long id, long[][] segmentedSortedNodes) {
+	private NewIdNode findNodeData(long id, SimpleNode[][] segmentedSortedNodes) {
 		for (int i = 0; i < segmentedSortedNodes.length; i++) {
-			long[] nodes = segmentedSortedNodes[i];
+			SimpleNode[] nodes = segmentedSortedNodes[i];
 			if (nodes != null) {
-				NodePos nodePos = binarySearch(id, nodes, i);
+				NewIdNode nodePos = binarySearch(id, nodes, i);
 				if (nodePos != null) {
 					return nodePos;
 				}
@@ -139,9 +353,9 @@ public class DataPreparer {
 
 	// 10-0
 
-	public NodePos binarySearch(long id, long[] nodes, int latLonBase) {
+	public NewIdNode binarySearch(long id, SimpleNode[] nodes, int latLonBase) {
 
-		if (id > nodes[nodes.length - 2] || id < nodes[0]) {
+		if (id > nodes[nodes.length - 1].getId() || id < nodes[0].getId()) {
 			return null;
 		}
 
@@ -149,26 +363,29 @@ public class DataPreparer {
 		int high = nodes.length - 1;
 
 		while (high >= low) {
-			int middle = ((low + high) / 2) * 2;
-			if (nodes[middle] == id) {
-				return NodePos.parseFrom(nodes, middle, latLonBase);
+			int middle = (low + high) / 2;
+			if (nodes[middle].getId() == id) {
+				return NewIdNode.newBuilder().setLatLonBase(latLonBase)
+						.setLatOffset(nodes[middle].getLatOffset())
+						.setLonOffset(nodes[middle].getLonOffset())
+						.setNewId(middle).build();
 			}
-			if (nodes[middle] < id) {
-				low = middle + 2;
+			if (nodes[middle].getId() < id) {
+				low = middle + 1;
 			}
-			if (nodes[middle] > id) {
-				high = middle - 2;
+			if (nodes[middle].getId() > id) {
+				high = middle - 1;
 			}
 		}
 		return null;
 	}
 
-	private long[][] sortSegmentFiles(String fileName)
+	private SimpleNode[][] sortSegmentFiles(String fileName)
 			throws FileNotFoundException, IOException {
 		String highwayNodesFolderName = fileName + File.separator
 				+ "highwayNodes";
 
-		long[][] segmentedSortedNodeIds = new long[92520][];
+		SimpleNode[][] segmentedSortedNodeIds = new SimpleNode[Main.SEGMENTS][];
 
 		File[] files = new File(highwayNodesFolderName).listFiles(f -> f
 				.getName().endsWith(".nodes"));
@@ -177,25 +394,18 @@ public class DataPreparer {
 					f.getName().indexOf('.'));
 			int latLon = Integer.parseInt(rawFileName);
 
-			List<Cartographer.SimpleNode> nodes = new ArrayList<>();
+			ArrayList<SimpleNode> nodes = new ArrayList<>();
 			try (DataInputStream dis = new DataInputStream(
 					new BufferedInputStream(new FileInputStream(f)));) {
 
 				while (dis.available() > 0) {
-					Cartographer.SimpleNode node = Cartographer.SimpleNode
-							.parseFromStream(dis);
+					SimpleNode node = SimpleNode.parseDelimitedFrom(dis);
 					nodes.add(node);
 				}
 			}
-			Collections.sort(nodes);
-			long[] sortedIds = new long[nodes.size() * 2];
-			for (int i = 0; i < nodes.size(); i++) {
-				SimpleNode node = nodes.get(i);
-				sortedIds[i * 2] = node.id;
-				sortedIds[(i * 2) + 1] = (Short.toUnsignedLong(node.lat) << 32)
-						| (Short.toUnsignedLong(node.lon));
-
-			}
+			Collections.sort(nodes,
+					(a, b) -> Long.compareUnsigned(a.getId(), b.getId()));
+			SimpleNode[] sortedIds = nodes.toArray(new SimpleNode[0]);
 
 			segmentedSortedNodeIds[latLon] = sortedIds;
 		}
@@ -336,6 +546,20 @@ public class DataPreparer {
 
 	// openStream = new URL(url).openStream();
 
+	// dos.readInt(); // skip lat/lon offset
+	// /**
+	// * connectionEncoding
+	// *
+	// * 1 pedestrian 1 automobile 5 speed 1 cross-segment 24 ID
+	// * 24 latLon (optional, if cross-segment)
+	// */
+	// boolean crossSegment = (Byte.toUnsignedInt(dos.readByte()) & 1) > 0;
+	// if (crossSegment) {
+	// dos.readShort(); // skip latLon
+	// dos.readByte(); // skip latLon
+	// }
+	// dos.readShort(); // skip ID 2/3
+	// dos.readByte(); // skip ID 3/3
 	// }
 
 	public static <T> void parseProtobuf(InputStream in, Parser<T> parser,

@@ -1,23 +1,16 @@
 package osmlab.io;
 import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
-import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
 
-import osmlab.DataPreparer.NodePos;
-import osmlab.io.Cartographer.ConnectionDetails;
+import osmlab.proto.OsmLight.PairConnection;
+import osmlab.proto.OsmLight.SimpleNode;
 import osmlab.sink.ByteUtils;
 
 public class Cartographer implements AutoCloseable {
@@ -35,33 +28,33 @@ public class Cartographer implements AutoCloseable {
 	// short lat
 	// short lon
 
-	public static class SimpleNode implements Comparable<SimpleNode>{
-		public final long id;
-		public final short lat;
-		public final short lon;
-		
-		
-		public SimpleNode(long id, short lat, short lon) {
-			this.id = id;
-			this.lat = lat;
-			this.lon = lon;
-		}
-
-		public static SimpleNode parseFromStream(DataInputStream dis) throws IOException {
-			return new SimpleNode(dis.readLong(),dis.readShort(),dis.readShort());
-		}
-		
-		public void writeToStream(DataOutputStream dos) throws IOException {
-			dos.writeLong(id);
-			dos.writeShort(Short.toUnsignedInt(lat));
-			dos.writeShort(Short.toUnsignedInt(lon));
-		}
-
-		@Override
-		public int compareTo(SimpleNode o) {
-			return Long.compareUnsigned(id, o.id);
-		}
-	}
+//	public static class SimpleNode implements Comparable<SimpleNode>{
+//		public final long id;
+//		public final short lat;
+//		public final short lon;
+//		
+//		
+//		public SimpleNode(long id, short lat, short lon) {
+//			this.id = id;
+//			this.lat = lat;
+//			this.lon = lon;
+//		}
+//
+//		public static SimpleNode parseFromStream(DataInputStream dis) throws IOException {
+//			return new SimpleNode(dis.readLong(),dis.readShort(),dis.readShort());
+//		}
+//		
+//		public void writeToStream(DataOutputStream dos) throws IOException {
+//			dos.writeLong(id);
+//			dos.writeShort(Short.toUnsignedInt(lat));
+//			dos.writeShort(Short.toUnsignedInt(lon));
+//		}
+//
+//		@Override
+//		public int compareTo(SimpleNode o) {
+//			return Long.compareUnsigned(id, o.id);
+//		}
+//	}
 	// 40 byte
 	public Cartographer(String mapName) {
 		highwayNodesFile = new File(mapName + File.separator + "highwayNodes");	
@@ -78,7 +71,7 @@ public class Cartographer implements AutoCloseable {
 	 * 5 speed
 	 * 1 cross-segment
 	 * 24 ID
-	 * 16 latLon (optional, if cross-segment)
+	 * 24 latLon (optional, if cross-segment)
 	 */
 	public static class ConnectionDetails {
 		public final boolean pedestrian;
@@ -129,8 +122,7 @@ public class Cartographer implements AutoCloseable {
 	// 16 lonOffset
 	// ConnectionDetails 
 
-	public void writePairwiseConnection(NodePos prevNode,
-			ConnectionDetails prevToNow) throws IOException {
+	public void writePairwiseConnection(int latLonBase, PairConnection connection) throws IOException {
 		
 //		if(prevNode.latLonBase != prevToNow.latLon) {
 //			System.out.println(ByteUtils.decodeLat(prevNode.latLonBase) +","+ByteUtils.decodeLon(prevNode.latLonBase) + " to " + ByteUtils.decodeLat(prevToNow.latLon) +"," + ByteUtils.decodeLon(prevToNow.latLon));
@@ -138,24 +130,19 @@ public class Cartographer implements AutoCloseable {
 //		if(true) {
 //			return;
 //		}
-		DataOutputStream dos = pairwiseConnectionWriters.get(prevNode.latLonBase);
+		DataOutputStream dos = pairwiseConnectionWriters.get(latLonBase);
 
 		
 		
 		if (dos == null) {
 			String pairFileName = pairwiseConnections.getAbsolutePath() + File.separator
-					+ prevNode.latLonBase + ".pairs";
+					+ latLonBase + ".pairs";
 			dos = new DataOutputStream(new BufferedOutputStream(
 					new FileOutputStream(new File(pairFileName))));
-			pairwiseConnectionWriters.put(prevNode.latLonBase, dos);
+			pairwiseConnectionWriters.put(latLonBase, dos);
 		}
 
-		dos.writeByte(prevNode.index >>> 16);
-		dos.writeByte(prevNode.index >>> 8);
-		dos.writeByte(prevNode.index);
-		dos.writeShort(prevNode.latOffset);
-		dos.writeShort(prevNode.lonOffset);
-		prevToNow.writeToStream(dos);
+		connection.writeDelimitedTo(dos);
 	}
 
 
@@ -235,6 +222,8 @@ public class Cartographer implements AutoCloseable {
 		int latLonBase = ByteUtils.encodeLatLong(latitudeBase, longitudeBase);
 
 		
+		
+		
 		DataOutputStream dataOutputStream = dataWriters.get(latLonBase);
 
 		if (dataOutputStream == null) {
@@ -245,13 +234,12 @@ public class Cartographer implements AutoCloseable {
 			dataWriters.put(latLonBase, dataOutputStream);
 		}
 		
-
-		// Write id
-		dataOutputStream.writeLong(node.getId());
-
-		// write latitude and longitude fractions
-		dataOutputStream.writeShort(latitudeOffset);
-		dataOutputStream.writeShort(longitudeOffset);
+		SimpleNode.Builder sNode = SimpleNode.newBuilder();
+		sNode.setId(node.getId());
+		sNode.setLatOffset(latitudeOffset);
+		sNode.setLonOffset(longitudeOffset);
+		
+		sNode.build().writeDelimitedTo(dataOutputStream);
 	}
 
 	@Override

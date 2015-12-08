@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 
 public class Main {
+	
+	public static final int SEGMENTS = 92520;
 
 	public static void main(String[] args) throws IOException {
 		
