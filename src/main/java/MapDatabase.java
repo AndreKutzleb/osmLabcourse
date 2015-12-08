@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,46 +23,27 @@ public class MapDatabase {
 		Map<Integer, Set<Integer>> neighbours = new HashMap<>();
 
 		File dataFile = new File("saarland-latest" + File.separator + "data"
-				+ File.separator + "71355.data");
+				+ File.separator + "71355.data.final");
 		File offsetFile = new File("saarland-latest" + File.separator + "data"
-				+ File.separator + "71355.offset");
+				+ File.separator + "71355.data.offset");
 
 		int[] offsetBuffer;
 		ByteBuffer dataBuffer;
-		// ByteBuffer offsetBuffer = ByteBuffer
-		// .allocate((int) offsetFile.length());
-		// ByteBuffer dataBuffer = ByteBuffer.allocate((int) dataFile.length());
-		try (FileInputStream datas = new FileInputStream(dataFile);
-				FileInputStream offsets = new FileInputStream(dataFile)) {
+
+
+		try (
 
 			ObjectInputStream offsetIn = new ObjectInputStream(
 					new FileInputStream(offsetFile));
 			ObjectInputStream dataIn = new ObjectInputStream(
-					new FileInputStream(dataFile));
+					new FileInputStream(dataFile));) {
 
 			offsetBuffer = (int[]) offsetIn.readObject();
 			dataBuffer = ByteBuffer.wrap((byte[]) dataIn.readObject());
-
-			// while ((read = offsets.getChannel().read(offsetBuffer)) > 0);
-			// while ((read = datas.getChannel().read(dataBuffer)) > 0);
-
 		}
 
-		dataBuffer.rewind();
 
-		// TODO FIXME REMOVE UNECESSARY ID (FOR EVERY NODE!)
-
-		// PairwiseConnection
-		// 24 sourceId
-		// 16 latOffset
-		// 16 lonOffset
-		/**
-		 * connectionEncoding
-		 * 
-		 * 1 pedestrian 1 automobile 5 speed 1 cross-segment 24 ID 24 latLon
-		 * (optional, if cross-segment)
-		 */
-
+		
 		int count = 0;
 		for (int id = 0; id < 100; id++) {
 			if (count++ > 100) {

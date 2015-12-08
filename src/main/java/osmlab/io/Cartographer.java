@@ -4,11 +4,14 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
 
+import osmlab.proto.OsmLight.Neighbour;
+import osmlab.proto.OsmLight.OffsetData;
 import osmlab.proto.OsmLight.PairConnection;
 import osmlab.proto.OsmLight.SimpleNode;
 import osmlab.sink.ByteUtils;
@@ -56,6 +59,10 @@ public class Cartographer implements AutoCloseable {
 //		}
 //	}
 	// 40 byte
+	
+	
+	
+	
 	public Cartographer(String mapName) {
 		highwayNodesFile = new File(mapName + File.separator + "highwayNodes");	
 		pairwiseConnections = new File(mapName + File.separator + "pairwiseConnections");	
@@ -63,6 +70,37 @@ public class Cartographer implements AutoCloseable {
 		pairwiseConnections.mkdir();
 
 	}
+	
+	
+	public static byte[] encodeOffsetData(OffsetData data) {
+		int neighboursize = data.getNeighbourList().stream().mapToInt(n -> n.hasLatLonOfSegment() ? 7 : 4).sum();
+		byte[] raw = new byte[4+neighboursize];
+		ByteBuffer buffer = ByteBuffer.wrap(raw);
+		
+		buffer.putShort((short) data.getLatOffset());
+		buffer.putShort((short) data.getLonOffset());
+		
+		for(Neighbour n : data.getNeighbourList()) {
+			int mask = 0;
+			mask|= n.getPedestrian() ? 0x80 : 0;
+			mask|= n.getCar() ? 0x40 : 0;
+			mask|= ((n.getSpeed() & 0x1f) << 1);
+			mask|= n.hasLatLonOfSegment() ? 0x01 : 0;
+			
+			buffer.put((byte) mask);
+			
+			buffer.put((byte) (n.getIdOfNode() >>> 16));
+			buffer.putShort((short) n.getIdOfNode());
+			
+			if(n.hasLatLonOfSegment()) {
+				buffer.put((byte) (n.getLatLonOfSegment() >>> 16));
+				buffer.putShort((short) n.getLatLonOfSegment());
+			}
+		}
+		
+		return raw;
+	}
+	
 	/**
 	 * connectionEncoding
 	 * 
