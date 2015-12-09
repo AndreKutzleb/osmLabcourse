@@ -1,6 +1,7 @@
 package osm.routing;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
+import java.awt.Point;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,7 +21,7 @@ public class MapDatabase {
 	// private final ByteBuffer[] offset = new ByteBuffer[Main.SEGMENTS];
 	//
 	// private int currentLonLat = -1;
-
+	
 	public static void main(String[] args) throws IOException,
 			ClassNotFoundException, InterruptedException {
 
@@ -174,7 +175,6 @@ public class MapDatabase {
 					current = nextBest;
 				}
 			}
-
 			long afterQueue = System.currentTimeMillis();		
 			System.out.println("Time taken: " + (afterQueue - beforeQueue));
 
