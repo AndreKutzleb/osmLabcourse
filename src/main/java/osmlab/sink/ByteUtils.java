@@ -21,6 +21,10 @@ public class ByteUtils {
 		double fraction = fractions / Math.pow(2, 16);
 		return base + fraction;
 	}
+
+	public static long concat(int high, int low) {
+		return Integer.toUnsignedLong(high) << 32 | Integer.toUnsignedLong(low);
+	}
 	
 	
 }

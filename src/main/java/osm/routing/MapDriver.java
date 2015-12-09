@@ -1,7 +1,9 @@
+package osm.routing;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Random;
 
 import osmlab.Main;
 
@@ -37,14 +39,36 @@ public class MapDriver {
 
 	private final MapSegment[] segments = new MapSegment[Main.SEGMENTS];
 
-	class MapSegment {
+	public class MapSegment {
+		public final int latLonBase;
 		public final byte[] data;
 		public final int[] offset;
 		
-		private MapSegment(byte[] dataBuffer, int[] offsetBuffer) {
+		private MapSegment(int latLonBase, byte[] dataBuffer, int[] offsetBuffer) {
+			this.latLonBase = latLonBase;
 			data = dataBuffer;
 			offset = offsetBuffer;
 		}
+	}
+	
+	public class SegmentNode {
+		public final MapSegment seg;
+		public final int index;
+		
+		public SegmentNode(MapSegment containingSegment, int index) {
+			this.seg = containingSegment;
+			this.index = index;
+		}		
+	}
+	
+	public SegmentNode getRandomNode(Random rand) {
+		
+		int index;
+		while(segments[index = rand.nextInt(Main.SEGMENTS)] == null);
+		
+		MapSegment chosenSegment = segments[index];
+		int node = rand.nextInt(chosenSegment.offset.length);
+		return new SegmentNode(chosenSegment, node);
 	}
 
 	public MapSegment get(int latLonBase) throws ClassNotFoundException, IOException {
@@ -73,7 +97,7 @@ public class MapDriver {
 			int[] offsetBuffer = (int[]) offsetIn.readObject();
 			byte[] dataBuffer = (byte[]) dataIn.readObject();
 
-			return new MapSegment(dataBuffer,offsetBuffer);
+			return new MapSegment(latLonBase,dataBuffer,offsetBuffer);
 		}
 	}
 
