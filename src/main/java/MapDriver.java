@@ -18,17 +18,21 @@ public class MapDriver {
 		
 		File[] files = new File(basePattern).listFiles((f) -> f.getName().endsWith(".data.final"));
 		long totalFilesize = 0;
+		long totalNodes = 0;
 		long before = System.currentTimeMillis();
 		for(File f : files) {
-			get(Integer.parseInt(f.getName().substring(0, f.getName().indexOf('.'))));
+			MapSegment fSeg = get(Integer.parseInt(f.getName().substring(0, f.getName().indexOf('.'))));
 			totalFilesize+=f.length();
+			
+			totalNodes+= fSeg.offset.length; 
 		}
 		long after = System.currentTimeMillis();
 	
 		long delta = after - before;
 		long megabytes = (long) (totalFilesize / Math.pow(2, 20));
-		System.out.println("Loaded " + files.length + " segments in " + delta + " ms. ("+ megabytes +" MB)");
-	
+		
+		System.out.println("Loaded " + files.length + " segments with a total of "+ totalNodes +" nodes in " + delta + " ms. ("+ megabytes +" MB)");
+		
 	}
 
 	private final MapSegment[] segments = new MapSegment[Main.SEGMENTS];

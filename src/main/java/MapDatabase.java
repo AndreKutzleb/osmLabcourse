@@ -36,99 +36,99 @@ public class MapDatabase {
 			ClassNotFoundException, InterruptedException {
 		
 		
-		MapDriver mapDriver = new MapDriver("baden-wuerttemberg-latest",true);
+		MapDriver mapDriver = new MapDriver("germany-latest",false);
 		
-		Thread.currentThread().sleep(1000000L);
+		//Thread.currentThread().sleep(1000000L);
 		
-		System.out.println(mapDriver.get(12));
-//		
-//		Random rand = new Random(1311);
-//		int from = rand.nextInt(offsetBuffer.length);
-//		int to = rand.nextInt(offsetBuffer.length);
-//
-//		int toLatOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[to]]) << 8
-//				| Byte.toUnsignedInt(dataBuffer[offsetBuffer[to] + 1]);
-//		int toLonOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[to] + 2]) << 8
-//				| Byte.toUnsignedInt(dataBuffer[offsetBuffer[to] + 3]);
-//
-//		double toLat = ByteUtils.reassembleDouble(ByteUtils.decodeLat(latLon),
-//				toLatOffset) - 90;
-//		double toLon = ByteUtils.reassembleDouble(
-//				ByteUtils.decodeLon(latLon), toLonOffset) - 180;
-//
-//		
-//		long beforeQueue = System.currentTimeMillis();
-//		{
-//			IntArrayList path = new IntArrayList();
-//			LongOpenHashSet traversedFromTo = new LongOpenHashSet();
-//			
-//			int nextToVisit = from;
-//			while(true) {
-//		
-//				path.add(nextToVisit);
-////				System.out.println(nextToVisit+ " ");
-//				
-//				if(nextToVisit == to) {
-//					System.out.println("found target");
-//					break;
-//				}
-//				
-//
-//				int index = offsetBuffer[nextToVisit] + 4;
-//				int max = nextToVisit + 1 == offsetBuffer.length
-//						? dataBuffer.length
-//						: offsetBuffer[nextToVisit + 1];
-//
-//				int smallestRemainingDistance = Integer.MAX_VALUE;
-//				int nextBest = -1;
-//				
-//				while (index < max) {
-//					byte mask = dataBuffer[index++];
-//					boolean crossesSegment = (mask & 1) > 0;
-//
-//					int target = 0;
-//					target |= Byte.toUnsignedInt(dataBuffer[index++]) << 16;
-//					target |= Byte.toUnsignedInt(dataBuffer[index++]) << 8;
-//					target |= Byte.toUnsignedInt(dataBuffer[index++]);
-//
-//					// skip weight;
-//					index+=2;
-//					if (!crossesSegment) {
-//						
-//
-//						int neighbourLatOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[target]]) << 8
-//								| Byte.toUnsignedInt(dataBuffer[offsetBuffer[target] + 1]);
-//						int neighbourLonOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[target] + 2]) << 8
-//								| Byte.toUnsignedInt(dataBuffer[offsetBuffer[target] + 3]);
-//
-//						double neighbourLat = ByteUtils.reassembleDouble(ByteUtils.decodeLat(latLon),
-//								neighbourLatOffset) - 90;
-//						double neighbourLon = ByteUtils.reassembleDouble(
-//								ByteUtils.decodeLon(latLon), neighbourLonOffset) - 180;
-//
-//						
-//						GeodesicData g = Geodesic.WGS84.Inverse(toLat, toLon,
-//								neighbourLat, neighbourLon);
-//						int distance = Math.max(1,(int) Math.round(g.s12));
-//						
-//						if((!traversedFromTo.contains(Integer.toUnsignedLong(nextToVisit) << 32 | Integer.toUnsignedLong(target))) && distance < smallestRemainingDistance) {
-//							smallestRemainingDistance = distance;
-//							nextBest = target;
-//						}
-//	
-//					}
-//					if (crossesSegment) {
-//						index += 3;
-//					}
-//
-//				}
-//				traversedFromTo.add(Integer.toUnsignedLong(nextToVisit) << 32 | Integer.toUnsignedLong(nextBest));
-//				nextToVisit = nextBest;
-//
-//			}
-//		}
-//
-//		long afterQueue = System.currentTimeMillis();
+		//System.out.println(mapDriver.get(12));
+		
+		Random rand = new Random(1311);
+		int from = rand.nextInt(offsetBuffer.length);
+		int to = rand.nextInt(offsetBuffer.length);
+
+		int toLatOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[to]]) << 8
+				| Byte.toUnsignedInt(dataBuffer[offsetBuffer[to] + 1]);
+		int toLonOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[to] + 2]) << 8
+				| Byte.toUnsignedInt(dataBuffer[offsetBuffer[to] + 3]);
+
+		double toLat = ByteUtils.reassembleDouble(ByteUtils.decodeLat(latLon),
+				toLatOffset) - 90;
+		double toLon = ByteUtils.reassembleDouble(
+				ByteUtils.decodeLon(latLon), toLonOffset) - 180;
+
+		
+		long beforeQueue = System.currentTimeMillis();
+		{
+			IntArrayList path = new IntArrayList();
+			LongOpenHashSet traversedFromTo = new LongOpenHashSet();
+			
+			int nextToVisit = from;
+			while(true) {
+		
+				path.add(nextToVisit);
+//				System.out.println(nextToVisit+ " ");
+				
+				if(nextToVisit == to) {
+					System.out.println("found target");
+					break;
+				}
+				
+
+				int index = offsetBuffer[nextToVisit] + 4;
+				int max = nextToVisit + 1 == offsetBuffer.length
+						? dataBuffer.length
+						: offsetBuffer[nextToVisit + 1];
+
+				int smallestRemainingDistance = Integer.MAX_VALUE;
+				int nextBest = -1;
+				
+				while (index < max) {
+					byte mask = dataBuffer[index++];
+					boolean crossesSegment = (mask & 1) > 0;
+
+					int target = 0;
+					target |= Byte.toUnsignedInt(dataBuffer[index++]) << 16;
+					target |= Byte.toUnsignedInt(dataBuffer[index++]) << 8;
+					target |= Byte.toUnsignedInt(dataBuffer[index++]);
+
+					// skip weight;
+					index+=2;
+					if (!crossesSegment) {
+						
+
+						int neighbourLatOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[target]]) << 8
+								| Byte.toUnsignedInt(dataBuffer[offsetBuffer[target] + 1]);
+						int neighbourLonOffset = Byte.toUnsignedInt(dataBuffer[offsetBuffer[target] + 2]) << 8
+								| Byte.toUnsignedInt(dataBuffer[offsetBuffer[target] + 3]);
+
+						double neighbourLat = ByteUtils.reassembleDouble(ByteUtils.decodeLat(latLon),
+								neighbourLatOffset) - 90;
+						double neighbourLon = ByteUtils.reassembleDouble(
+								ByteUtils.decodeLon(latLon), neighbourLonOffset) - 180;
+
+						
+						GeodesicData g = Geodesic.WGS84.Inverse(toLat, toLon,
+								neighbourLat, neighbourLon);
+						int distance = Math.max(1,(int) Math.round(g.s12));
+						
+						if((!traversedFromTo.contains(Integer.toUnsignedLong(nextToVisit) << 32 | Integer.toUnsignedLong(target))) && distance < smallestRemainingDistance) {
+							smallestRemainingDistance = distance;
+							nextBest = target;
+						}
+	
+					}
+					if (crossesSegment) {
+						index += 3;
+					}
+
+				}
+				traversedFromTo.add(Integer.toUnsignedLong(nextToVisit) << 32 | Integer.toUnsignedLong(nextBest));
+				nextToVisit = nextBest;
+
+			}
+		}
+
+		long afterQueue = System.currentTimeMillis();
 
 		// {
 		// {

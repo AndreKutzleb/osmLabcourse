@@ -16,6 +16,7 @@ import com.carrotsearch.hppc.LongOpenHashSet;
 
 public class HighwayNodeSink extends SimpleSink {
 
+	long nodesProcessed = 0;
 	private final OutputStream os;
 
 	private final LongOpenHashSet highwayNodes;
@@ -48,6 +49,10 @@ public class HighwayNodeSink extends SimpleSink {
 		for (WayNode n : way.getWayNodes()) {
 			simpleWay.addNode(n.getNodeId());
 			highwayNodes.add(n.getNodeId());
+			nodesProcessed++;
+			if(nodesProcessed % 10000 == 0) {
+				System.out.println(nodesProcessed +" nodes Processed");
+			}
 		}
 
 		// org.openstreetmap.osmosis.osmbinary.Osmformat.Node.Builder

@@ -46,24 +46,28 @@ public class DataPreparer {
 				inputFile.getName().indexOf('.'));
 		new File(fileName).mkdir();
 		String waysFile = fileName + File.separator + fileName + ".ways.pbf";
-		{
-			LongOpenHashSet highwayNodes = new LongOpenHashSet();
-
-			// set of all highwaynodes and filtering and saving all ways in own
-			// format
-			cacheHighwayNodesAndWriteHighwaysToDisk(waysFile, highwayNodes,
-					new FileInputStream(inputFile));
-
-			// reading all nodes, filtering those who are in the set of highway
-			// nodes, and saving them in segmented format.
-			segmentAndSaveAllHighwayNodesWithCoordinates(fileName,
-					highwayNodes, inputFile);
-
-			// sort the nodes by id in each segment file
-			SimpleNode[][] segmentedSortedNodes = sortSegmentFiles(fileName);
-
-			createPairwiseWays(segmentedSortedNodes, waysFile, fileName);
-		}
+//		{
+//			LongOpenHashSet highwayNodes = new LongOpenHashSet();
+//
+//			// set of all highwaynodes and filtering and saving all ways in own
+//			// format
+//			System.out.println("Extracting highways and caching ids");
+//			cacheHighwayNodesAndWriteHighwaysToDisk(waysFile, highwayNodes,
+//					new FileInputStream(inputFile));
+//
+//			System.out.println("splitting ways into segment files");
+//			// reading all nodes, filtering those who are in the set of highway
+//			// nodes, and saving them in segmented format.
+//			segmentAndSaveAllHighwayNodesWithCoordinates(fileName,
+//					highwayNodes, inputFile);
+//
+//			System.out.println("create sorted arrays of segmented nodes");
+//			// sort the nodes by id in each segment file
+//			SimpleNode[][] segmentedSortedNodes = sortSegmentFiles(fileName);
+//
+//			System.out.println("create pairwise ways");
+//			createPairwiseWays(segmentedSortedNodes, waysFile, fileName);
+//		}
 		createOffsetData(fileName);
 
 		condenseOffsetDataAndCreateOffsetArray(fileName);
@@ -109,6 +113,7 @@ public class DataPreparer {
 
 				dataBuffer.get(dataArray, 0, dataArray.length);
 
+				f.delete();
 				offsetOut.writeObject(offsetArray);
 				dataOut.writeObject(dataArray);
 
@@ -128,9 +133,10 @@ public class DataPreparer {
 		File[] files = pairFolder.listFiles(file -> file.getName().endsWith(
 				".pairs"));
 
-		List<PairConnection> pairs = new ArrayList<>();
 
+		int handled = 0;
 		for (File f : files) {
+			List<PairConnection> pairs = new ArrayList<>();
 			byte[] readAllBytes = Files.readAllBytes(f.toPath());
 
 			try (DataInputStream dos = new DataInputStream(
@@ -164,13 +170,6 @@ public class DataPreparer {
 					if (previous.getId() != current.getId()) {
 						// wrap up previous
 						OffsetData data = builder.build();
-						if (id < 100) {
-							System.out.print(id + " : ");
-							for (Neighbour n : data.getNeighbourList()) {
-								System.out.print(n.getIdOfNode() + ", ");
-							}
-							System.out.println();
-						}
 						data.writeDelimitedTo(dataOut);
 						id++;
 						builder = OffsetData.newBuilder()
@@ -185,7 +184,8 @@ public class DataPreparer {
 				}
 				builder.build().writeDelimitedTo(dataOut);
 			}
-
+			
+			System.out.println("File "+ ++handled + "/" + files.length + " handled.");
 
 		}
 	}
@@ -215,7 +215,7 @@ public class DataPreparer {
 				long id = way.getNodeList().get(i);
 				NewIdNode curNode = findNodeData(id, segmentedSortedNodes,
 						prevNode.getLatLonBase());
-				
+
 				// TODO speed, pedestrian, car
 				double prevLat = ByteUtils.reassembleDouble(
 						ByteUtils.decodeLat(prevNode.getLatLonBase()),
@@ -233,10 +233,10 @@ public class DataPreparer {
 
 				GeodesicData g = Geodesic.WGS84.Inverse(prevLat, prevLon,
 						currLat, currLon);
-				int distance = Math.max(1,(int) Math.round(g.s12));
+				int distance = Math.max(1, (int) Math.round(g.s12));
 				if (distance > Math.pow(2, 16)) {
-					throw new IllegalArgumentException(
-							"distance between two nodes too large(> 2^16)");
+					String error = String.format("distance between %s,%s and %s,%s too large (%s > 2^16)",prevLat,prevLon,currLat,currLon, distance);
+					throw new IllegalArgumentException(error);
 				}
 
 				Neighbour.Builder toCurrent = Neighbour.newBuilder()
@@ -282,6 +282,7 @@ public class DataPreparer {
 					e.printStackTrace();
 				}
 
+				prevNode = curNode;
 			}
 		}
 
@@ -321,7 +322,6 @@ public class DataPreparer {
 
 			}
 		}
-
 
 		for (int i = 0; i < segmentedSortedNodes.length; i++) {
 			SimpleNode[] nodes = segmentedSortedNodes[i];
@@ -374,6 +374,7 @@ public class DataPreparer {
 
 		File[] files = new File(highwayNodesFolderName).listFiles(f -> f
 				.getName().endsWith(".nodes"));
+		int filesProcessed = 0;
 		for (File f : files) {
 			String rawFileName = f.getName().substring(0,
 					f.getName().indexOf('.'));
@@ -393,6 +394,10 @@ public class DataPreparer {
 			SimpleNode[] sortedIds = nodes.toArray(new SimpleNode[0]);
 
 			segmentedSortedNodeIds[latLon] = sortedIds;
+
+			filesProcessed++;
+			System.out.println(filesProcessed + " nodes Processed");
+
 		}
 		return segmentedSortedNodeIds;
 	}
@@ -455,7 +460,6 @@ public class DataPreparer {
 		}
 
 	}
-
 
 	public static <T> void parseProtobuf(InputStream in, Parser<T> parser,
 			Consumer<T> action) throws IOException {

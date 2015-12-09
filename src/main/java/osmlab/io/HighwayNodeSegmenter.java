@@ -9,6 +9,7 @@ import com.carrotsearch.hppc.LongOpenHashSet;
 
 public class HighwayNodeSegmenter extends SimpleSink {
 
+	long nodesProcessed = 0; 
 	private final Cartographer cartographer;
 	private final LongOpenHashSet highwayNodes;
 
@@ -28,6 +29,10 @@ public class HighwayNodeSegmenter extends SimpleSink {
 
 			if (highwayNodes.contains(node.getId())) {
 				try {
+					nodesProcessed++;
+					if(nodesProcessed % 10000 == 0) {
+						System.out.println(nodesProcessed +" nodes Processed");
+					}
 					cartographer.writeSimpleNode(node);
 				} catch (IOException e) {
 					e.printStackTrace();
