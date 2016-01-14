@@ -16,10 +16,13 @@ public class PipelineParts {
 
 		public final String SOURCE_FILE;
 		public final String HIGHWAY_NODES_RAW;
-		public final String HIGHWAY_NODES_RAW_DATA;
+		public final String HIGHWAY_NODES_RAW_SIZE;
 		public final String HIGHWAY_NODES_SORTED;
-		public final String HIGHWAY_NODES_SORTED_DATA;
+		public final String HIGHWAY_NODES_SORTED_SIZE;
 		public final String OFFSET_ARRAY_RAW;
+		public final String OFFSET_ARRAY;
+		public final String DATA_ARRAY_SIZE;
+		public final String DATA_ARRAY;
 		
 		public PipelinePaths(String sourceFilePath) {
 			
@@ -31,13 +34,20 @@ public class PipelineParts {
 			File dataFolder = new File(dataFolderPath);
 			dataFolder.mkdirs();
 
+			String f = dataFolderPath + File.separator;
 			
 			SOURCE_FILE = sourceFilePath;
-			HIGHWAY_NODES_RAW = dataFolder + File.separator + "highwaynodes_raw.data";
-			HIGHWAY_NODES_RAW_DATA = dataFolder + File.separator + "highwaynodes_raw.sizes";
-			HIGHWAY_NODES_SORTED = dataFolder + File.separator + "highwaynodes_sorted.data";
-			HIGHWAY_NODES_SORTED_DATA = dataFolder + File.separator + "highwaynodes_sorted.sizes";
-			OFFSET_ARRAY_RAW = dataFolder + File.separator + "offsetarray_raw.data";
+			HIGHWAY_NODES_RAW = 		f + "highwaynodes_raw.data";
+			HIGHWAY_NODES_RAW_SIZE = 	f + "highwaynodes_raw.size";
+			HIGHWAY_NODES_SORTED =	 	f + "highwaynodes_sorted.data";
+			HIGHWAY_NODES_SORTED_SIZE = f + "highwaynodes_sorted.size";
+			OFFSET_ARRAY_RAW = 			f + "offsetarray_raw.data";
+			OFFSET_ARRAY = 				f + "offsetarray.data";
+			DATA_ARRAY_SIZE = 			f + "dataarray.size";
+			DATA_ARRAY = 				f + "dataarray.data";
+			
+			//OFFSET_ARRAY_RAW_SIZE = dataFolder + File.separator + "offsetarray_raw.size";
+
 		}
 	}
 	

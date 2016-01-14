@@ -22,7 +22,6 @@ import osmlab.sink.OsmUtils;
 
 public class CreateOffsetArray extends DataProcessor{
 	
-	public static final int CONSTANT_NODESIZE = 2; // float lat, float lon, 4 byte each -> 8 byte or 64 bit 
 
 	public CreateOffsetArray(PipelinePaths paths, IntConsumer progressHandler) {
 		super(paths,progressHandler);
@@ -30,10 +29,12 @@ public class CreateOffsetArray extends DataProcessor{
 
 	@Override
 	public void process() throws IOException {
-		try (DataInputStream highwayNodesSortedSizes = new DataInputStream(new FileInputStream(paths.HIGHWAY_NODES_SORTED_DATA));
+		try (DataInputStream highwayNodesSortedSizes = new DataInputStream(new FileInputStream(paths.HIGHWAY_NODES_SORTED_SIZE));
 				DataInputStream highwayNodesSorted = new DataInputStream(new BufferedInputStream(new FileInputStream(paths.HIGHWAY_NODES_SORTED)));
 				InputStream is = new FileInputStream(paths.SOURCE_FILE);
 				DataOutputStream offsetArrayRaw = new DataOutputStream( new BufferedOutputStream(new FileOutputStream(paths.OFFSET_ARRAY_RAW)));
+				DataOutputStream dataArraySize = new DataOutputStream( new BufferedOutputStream(new FileOutputStream(paths.DATA_ARRAY_SIZE)));
+
 				) {
 			int nodeCount = (int) highwayNodesSortedSizes.readInt();
 			long[] allNodes = new long[nodeCount];
@@ -72,10 +73,14 @@ public class CreateOffsetArray extends DataProcessor{
 						int previousOffsetToStart = 0; 
 						offsetArrayRaw.writeInt(distanceFromStart); // 0 at start
 						for(int i = 1; i < outgoingEdgesOfNode.length; i++) {
-							previousOffsetToStart += CONSTANT_NODESIZE; // space for lat/lon
+							previousOffsetToStart += FormatConstants.CONSTANT_NODESIZE; // space for lat/lon
 							previousOffsetToStart += outgoingEdgesOfNode[i-1]; // space for neighbours
 							offsetArrayRaw.writeInt(previousOffsetToStart);
 						}
+						int totalLength = previousOffsetToStart;
+						totalLength+= FormatConstants.CONSTANT_NODESIZE; // space for lat/lon
+						totalLength += outgoingEdgesOfNode[outgoingEdgesOfNode.length-1]; // space for neighbours of last node
+						dataArraySize.writeInt(totalLength);
 					} catch (IOException e) {
 						e.printStackTrace();
 					}

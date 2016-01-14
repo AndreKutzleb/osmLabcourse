@@ -35,10 +35,10 @@ public class FilterDuplicatesAndSortHighwayNodes extends DataProcessor {
 
 	@Override
 	public void process() throws IOException {
-		try (DataInputStream highwayNodesSizes = new DataInputStream(new FileInputStream(paths.HIGHWAY_NODES_RAW_DATA));
+		try (DataInputStream highwayNodesSizes = new DataInputStream(new FileInputStream(paths.HIGHWAY_NODES_RAW_SIZE));
 				DataInputStream highwayNodes = new DataInputStream(new BufferedInputStream(new FileInputStream(paths.HIGHWAY_NODES_RAW)));
 				DataOutputStream highwayNodesSorted = new DataOutputStream( new BufferedOutputStream(new FileOutputStream(paths.HIGHWAY_NODES_SORTED)));
-				DataOutputStream highwayNodesSortedSizes = new DataOutputStream(new FileOutputStream(paths.HIGHWAY_NODES_SORTED_DATA));
+				DataOutputStream highwayNodesSortedSizes = new DataOutputStream(new FileOutputStream(paths.HIGHWAY_NODES_SORTED_SIZE));
 				) {
 			int nodeCount = (int) highwayNodesSizes.readInt();
 			long[] allNodes = new long[nodeCount];

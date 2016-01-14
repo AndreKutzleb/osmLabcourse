@@ -28,7 +28,7 @@ public class ExtractHighwayNodes extends DataProcessor {
 
 		try (OutputStream os = new FileOutputStream(paths.HIGHWAY_NODES_RAW);
 				OutputStream osMeta = new FileOutputStream(
-						paths.HIGHWAY_NODES_RAW_DATA);
+						paths.HIGHWAY_NODES_RAW_SIZE);
 				InputStream is = new FileInputStream(paths.SOURCE_FILE);) {
 
 			HighwaySink sink = new HighwaySink(os, osMeta);

@@ -26,6 +26,23 @@ public class ByteUtils {
 		return Integer.toUnsignedLong(high) << 32 | Integer.toUnsignedLong(low);
 	}
 	
+	/**
+	 * 
+	 * @param targetId 0 - 2^27, target in offset-array
+	 * @param pedestrian if road can be traversed by pedestrian
+	 * @param speed 0-15, speed limit
+	 * @return int encoded as [targetID][pedestrian][speed]
+	 */
+	public static int encodeEdge(int targetId, boolean pedestrian, byte speed) {
+		int edge = 0;
+		int pedestrianVal = pedestrian ? 1 : 0;
+		edge |= (targetId << 5);
+		edge |= (pedestrianVal << 4);
+		edge |= speed;
+		
+		return edge;
+	}
+	
 	
 }
 
