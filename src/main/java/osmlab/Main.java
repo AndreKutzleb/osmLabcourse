@@ -15,7 +15,7 @@ public class Main {
 //		if(true) {
 //			return;
 //		}
-		String name = "germany-latest.osm.pbf";
+		String name = "saarland-latest.osm.pbf";
 		//String name = "saarland-latest.osm.pbf";
 				DataPreparer preparer = new DataPreparer();
 		preparer.prepareData(new File(name));

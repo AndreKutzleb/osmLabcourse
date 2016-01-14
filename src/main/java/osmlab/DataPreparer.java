@@ -26,7 +26,8 @@ import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
 
 import osmlab.io.Cartographer;
 import osmlab.io.HighwayNodeSegmenter;
-import osmlab.io.HighwayNodeSink;
+import osmlab.io.AbstractHighwaySink;
+import osmlab.io.StatisticsSink;
 import osmlab.proto.OsmLight.Neighbour;
 import osmlab.proto.OsmLight.NewIdNode;
 import osmlab.proto.OsmLight.OffsetData;
@@ -46,6 +47,8 @@ public class DataPreparer {
 				inputFile.getName().indexOf('.'));
 		new File(fileName).mkdir();
 		String waysFile = fileName + File.separator + fileName + ".ways.pbf";
+		
+		statisticsScan(waysFile, new FileInputStream(inputFile));
 //		{
 //			LongOpenHashSet highwayNodes = new LongOpenHashSet();
 //
@@ -68,11 +71,39 @@ public class DataPreparer {
 //			System.out.println("create pairwise ways");
 //			createPairwiseWays(segmentedSortedNodes, waysFile, fileName);
 //		}
-		createOffsetData(fileName);
+//		createOffsetData(fileName);
 
-		condenseOffsetDataAndCreateOffsetArray(fileName);
+	//	condenseOffsetDataAndCreateOffsetArray(fileName);
 
 	}
+	
+	private void statisticsScan(String waysFile,InputStream inputStream)
+			throws IOException {
+		
+		StatisticsSink sink = new StatisticsSink();
+			
+			RunnableSource reader;
+
+			reader = new crosby.binary.osmosis.OsmosisReader(inputStream);
+
+			reader.setSink(sink);
+
+			Thread readerThread = new Thread(reader);
+			readerThread.start();
+
+			while (readerThread.isAlive()) {
+				try {
+					readerThread.join();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+
+		
+	}
+
+	
+	
 	private void condenseOffsetDataAndCreateOffsetArray(String fileName)
 			throws IOException {
 		File dataFolder = new File(fileName + File.separator + "data");
@@ -408,7 +439,7 @@ public class DataPreparer {
 		try (FileOutputStream waysWriter = new FileOutputStream(new File(
 				waysFile));) {
 
-			HighwayNodeSink hNodeSink = new HighwayNodeSink(waysWriter,
+			AbstractHighwaySink hNodeSink = new AbstractHighwaySink(waysWriter,
 					highwayNodes);
 
 			RunnableSource reader;
