@@ -24,9 +24,9 @@ import net.sf.geographiclib.GeodesicData;
 
 import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
 
+import osmlab.io.AbstractHighwaySink;
 import osmlab.io.Cartographer;
 import osmlab.io.HighwayNodeSegmenter;
-import osmlab.io.AbstractHighwaySink;
 import osmlab.io.StatisticsSink;
 import osmlab.proto.OsmLight.Neighbour;
 import osmlab.proto.OsmLight.NewIdNode;
@@ -436,30 +436,30 @@ public class DataPreparer {
 	private void cacheHighwayNodesAndWriteHighwaysToDisk(String waysFile,
 			LongOpenHashSet highwayNodes, InputStream inputStream)
 			throws IOException {
-		try (FileOutputStream waysWriter = new FileOutputStream(new File(
-				waysFile));) {
-
-			AbstractHighwaySink hNodeSink = new AbstractHighwaySink(waysWriter,
-					highwayNodes);
-
-			RunnableSource reader;
-
-			reader = new crosby.binary.osmosis.OsmosisReader(inputStream);
-
-			reader.setSink(hNodeSink);
-
-			Thread readerThread = new Thread(reader);
-			readerThread.start();
-
-			while (readerThread.isAlive()) {
-				try {
-					readerThread.join();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-
-		}
+//		try (FileOutputStream waysWriter = new FileOutputStream(new File(
+//				waysFile));) {
+//
+////			AbstractHighwaySink hNodeSink = new AbstractHighwaySink(waysWriter,
+////					highwayNodes);
+//
+//			RunnableSource reader;
+//
+//			reader = new crosby.binary.osmosis.OsmosisReader(inputStream);
+//
+//			reader.setSink(hNodeSink);
+//
+//			Thread readerThread = new Thread(reader);
+//			readerThread.start();
+//
+//			while (readerThread.isAlive()) {
+//				try {
+//					readerThread.join();
+//				} catch (InterruptedException e) {
+//					e.printStackTrace();
+//				}
+//			}
+//
+//		}
 	}
 
 	private void segmentAndSaveAllHighwayNodesWithCoordinates(String mapName,

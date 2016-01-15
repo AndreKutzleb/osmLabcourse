@@ -20,15 +20,19 @@ public abstract class AbstractHighwaySink extends SimpleSink {
 						.filter(tag -> tag.getKey().equals("highway"))
 						.findAny().ifPresent(tag -> handleHighway(way));
 			}
+			
+			handleWay(way);
 
 		} else if (entity instanceof Node) {
 			Node node = (Node) entity;
 			handleNode(node);
 		}
 	}
+	public void handleWay(Way way) {};
 
 	public void handleHighway(Way way) {};
 
 	public void handleNode(Node node) {};
+	
 
 }

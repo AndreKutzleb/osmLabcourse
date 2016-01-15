@@ -7,29 +7,16 @@ import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.function.IntConsumer;
-
-import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
-import org.openstreetmap.osmosis.core.domain.v0_6.Entity;
-import org.openstreetmap.osmosis.core.domain.v0_6.Way;
-import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
-
-import com.carrotsearch.hppc.LongOpenHashSet;
+import java.util.function.BiConsumer;
 
 import osm.preprocessing.DataProcessor;
 import osm.preprocessing.PipelineParts.PipelinePaths;
-import osm.preprocessing.pipeline.ExtractHighwayNodes.HighwaySink;
-import osmlab.io.SimpleSink;
-import osmlab.proto.OsmLight;
-import osmlab.sink.OsmUtils;
+import osmlab.sink.OsmUtils.TriConsumer;
 
 public class FilterDuplicatesAndSortHighwayNodes extends DataProcessor {
 
-	public FilterDuplicatesAndSortHighwayNodes(PipelinePaths paths, IntConsumer progressHandler) {
+	public FilterDuplicatesAndSortHighwayNodes(PipelinePaths paths, TriConsumer<String, Integer, Integer> progressHandler) {
 		super(paths,progressHandler);
 	}
 
@@ -46,11 +33,17 @@ public class FilterDuplicatesAndSortHighwayNodes extends DataProcessor {
 			// read raw unsorted node ids with duplicates
 			for(int i = 0; i < nodeCount; i++) {
 				allNodes[i] = highwayNodes.readLong();
+				
+				if(i % (nodeCount / 100) == 0) {
+					progressHandler.accept("Reading raw Node IDs", i, nodeCount);				
+				}
 			}
 			
 			//sort according to id number
 			Arrays.sort(allNodes);
 			
+			
+			int progress = 0;
 			// write to file, but skip duplicates
 			int uniqueNodes = 0;
 			long previous = allNodes[0] - 1;
@@ -60,9 +53,18 @@ public class FilterDuplicatesAndSortHighwayNodes extends DataProcessor {
 					highwayNodesSorted.writeLong(id);
 				} 
 				previous = id;
+				
+				progress++;
+				
+				if(progress % (allNodes.length / 100) == 0) {
+					progressHandler.accept("Writing sorted Node IDs, skipping duplicates", progress, allNodes.length);				
+				}
 			}
 			// write number of unique nodes to meta file
 			highwayNodesSortedSizes.writeInt(uniqueNodes);
+			
+			highwayNodesSortedSizes.flush();
+			highwayNodesSorted.flush();
 		}
 		
 	}

@@ -1,5 +1,6 @@
 package osm.preprocessing.pipeline;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
@@ -7,7 +8,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.function.IntConsumer;
 
 import org.openstreetmap.osmosis.core.domain.v0_6.Way;
 import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
@@ -15,21 +15,22 @@ import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
 import osm.preprocessing.DataProcessor;
 import osm.preprocessing.PipelineParts.PipelinePaths;
 import osmlab.io.AbstractHighwaySink;
+import osmlab.sink.FormatConstants;
 import osmlab.sink.OsmUtils;
+import osmlab.sink.OsmUtils.TriConsumer;
 
 public class ExtractHighwayNodes extends DataProcessor {
 
-	public ExtractHighwayNodes(PipelinePaths paths, IntConsumer progressHandler) {
+	public ExtractHighwayNodes(PipelinePaths paths, TriConsumer<String, Integer, Integer> progressHandler) {
 		super(paths,progressHandler);
 	}
 
 	@Override
 	public void process() throws IOException {
 
-		try (OutputStream os = new FileOutputStream(paths.HIGHWAY_NODES_RAW);
-				OutputStream osMeta = new FileOutputStream(
-						paths.HIGHWAY_NODES_RAW_SIZE);
-				InputStream is = new FileInputStream(paths.SOURCE_FILE);) {
+		try (OutputStream os = new BufferedOutputStream(new FileOutputStream(paths.HIGHWAY_NODES_RAW));
+				OutputStream osMeta = new BufferedOutputStream(new FileOutputStream(paths.HIGHWAY_NODES_RAW_SIZE));
+				InputStream is = new BufferedInputStream(new FileInputStream(paths.SOURCE_FILE));) {
 
 			HighwaySink sink = new HighwaySink(os, osMeta);
 			OsmUtils.readFromOsm(is, sink);
@@ -38,8 +39,9 @@ public class ExtractHighwayNodes extends DataProcessor {
 
 	class HighwaySink extends AbstractHighwaySink {
 
+		int highways = 0;
 		int nodes = 0;
-
+		int expectedHighways = (int) (ExtractHighwayNodes.this.sourceFileSize * FormatConstants.highwaysPerByte);
 		private final DataOutputStream os;
 		private final DataOutputStream osMeta;
 
@@ -50,10 +52,16 @@ public class ExtractHighwayNodes extends DataProcessor {
 
 		@Override
 		public void handleHighway(Way way) {
+			highways++;
+			// 200 updates at most
+			if(highways % (expectedHighways / 100) == 0) {
+				progressHandler.accept("Extracting Node IDs from Source file", highways, expectedHighways);				
+			}
+			
 			for (WayNode n : way.getWayNodes()) {
-				nodes++;
 				try {
 					os.writeLong(n.getNodeId());
+					nodes++;
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -64,6 +72,9 @@ public class ExtractHighwayNodes extends DataProcessor {
 		public void complete() {
 			try {
 				osMeta.writeInt(nodes);
+				os.flush();
+				osMeta.flush();
+
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

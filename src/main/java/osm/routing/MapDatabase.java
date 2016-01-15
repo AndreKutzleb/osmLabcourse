@@ -1,7 +1,6 @@
 package osm.routing;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
-import java.awt.Point;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;

@@ -9,21 +9,22 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
-import java.util.function.IntConsumer;
+import java.util.function.BiConsumer;
 
 import org.openstreetmap.osmosis.core.domain.v0_6.Way;
-import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
 
 import osm.preprocessing.DataProcessor;
 import osm.preprocessing.PipelineParts.PipelinePaths;
 import osmlab.io.AbstractHighwaySink;
 import osmlab.io.SimpleSink;
+import osmlab.sink.FormatConstants;
 import osmlab.sink.OsmUtils;
+import osmlab.sink.OsmUtils.TriConsumer;
 
 public class CreateOffsetArray extends DataProcessor{
 	
 
-	public CreateOffsetArray(PipelinePaths paths, IntConsumer progressHandler) {
+	public CreateOffsetArray(PipelinePaths paths, TriConsumer<String, Integer, Integer> progressHandler) {
 		super(paths,progressHandler);
 	}
 
@@ -42,13 +43,21 @@ public class CreateOffsetArray extends DataProcessor{
 			
 			// read raw unsorted node ids with duplicates
 			for(int i = 0; i < nodeCount; i++) {
-				allNodes[i] = highwayNodesSorted.readInt();
+				allNodes[i] = highwayNodesSorted.readLong();
+				
+				if(i % (nodeCount / 100) == 0) {
+					progressHandler.accept("Reading raw Node IDs", i, nodeCount);				
+				}
 			}
 			
 			SimpleSink s = new AbstractHighwaySink() {
 				
+				private int highways = 0;
+				private final int expectedHighways = (int) (CreateOffsetArray.this.sourceFileSize * FormatConstants.highwaysPerByte);
+
 				@Override
 				public void handleHighway(Way way) {
+					highways++;
 					// remember one link for each direction
 					for(int i = 1; i < way.getWayNodes().size(); i++) {
 						
@@ -61,6 +70,10 @@ public class CreateOffsetArray extends DataProcessor{
 						outgoingEdgesOfNode[indexOfFirstNode]++;
 						outgoingEdgesOfNode[indexOfSecondNode]++;
 					}		
+					
+					if(highways % (expectedHighways / 100) == 0) {
+						progressHandler.accept("Counting outgoing edges for each highway node", highways, expectedHighways);				
+					}
 				}
 				
 				@Override
@@ -76,6 +89,10 @@ public class CreateOffsetArray extends DataProcessor{
 							previousOffsetToStart += FormatConstants.CONSTANT_NODESIZE; // space for lat/lon
 							previousOffsetToStart += outgoingEdgesOfNode[i-1]; // space for neighbours
 							offsetArrayRaw.writeInt(previousOffsetToStart);
+							
+							if(i % (outgoingEdgesOfNode.length / 100) == 0) {
+								progressHandler.accept("Converting edge count to offset array", i, outgoingEdgesOfNode.length);				
+							}
 						}
 						int totalLength = previousOffsetToStart;
 						totalLength+= FormatConstants.CONSTANT_NODESIZE; // space for lat/lon
