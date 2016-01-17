@@ -10,6 +10,7 @@ import java.awt.event.MouseWheelListener;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -27,6 +28,8 @@ import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.MapPolygonImpl;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
+
+import osm.map.Graph;
 
 /**
  * Default map controller which implements map moving by pressing the right
@@ -72,11 +75,22 @@ MouseWheelListener {
     
     int edgeCount = 0;
     int[] edgesTarget = null;
+
+	private final Graph graph;
         
         
    
     public OsmRoutingMapController(JMapViewer map) {
         super(map);
+        
+        Graph graph = null;
+        try {
+			graph = Graph.createGraph("saarland-latest.osm.pbf");
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+        this.graph = graph;
+
 //        
 //        try {
 //            loadOsmData();
@@ -205,24 +219,31 @@ MouseWheelListener {
             ICoordinate clickPt = map.getPosition(e.getPoint());
             Coordinate clickCoord = new Coordinate(clickPt.getLat(), clickPt.getLon());
             
-            int clickNextPt = findNextPoint(clickCoord);            
+            int clickNextPt = graph.findNodeClosestTo(clickPt.getLat(),clickPt.getLon());            
             if(clickNextPt == -1) {
                 System.err.println("No point found!!!");
                 return;
             }
             
-            Coordinate clickNextPtCoord = new Coordinate(nodesLat[clickNextPt], nodesLon[clickNextPt]);
-
-            if(e.getButton() == MouseEvent.BUTTON1) {
-                startIndex = clickNextPt;
-                startLoc = clickNextPtCoord;
-            } 
-            else if(e.getButton() == MouseEvent.BUTTON3) {
-                targetIndex = clickNextPt;
-                targetLoc = clickNextPtCoord;
-            } 
-
-            updateRoute();
+            MapMarkerDot startDot = new MapMarkerDot("Clicked", clickCoord);
+            map.addMapMarker(startDot);
+            
+            Coordinate closestCoords = new Coordinate(graph.latOf(clickNextPt),graph.lonOf(clickNextPt));
+            MapMarkerDot closest = new MapMarkerDot("ClosestNode", closestCoords);
+            map.addMapMarker(closest);
+//            
+//            Coordinate clickNextPtCoord = new Coordinate(nodesLat[clickNextPt], nodesLon[clickNextPt]);
+//
+//            if(e.getButton() == MouseEvent.BUTTON1) {
+//                startIndex = clickNextPt;
+//                startLoc = clickNextPtCoord;
+//            } 
+//            else if(e.getButton() == MouseEvent.BUTTON3) {
+//                targetIndex = clickNextPt;
+//                targetLoc = clickNextPtCoord;
+//            } 
+//
+//            updateRoute();
         } 
         else if (doubleClickZoomEnabled && e.getClickCount() == 2 && e.getButton() == MouseEvent.BUTTON1) {
             // Zoom on doubleclick

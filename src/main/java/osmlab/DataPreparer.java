@@ -1,5 +1,7 @@
 package osmlab;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -24,7 +26,6 @@ import net.sf.geographiclib.GeodesicData;
 
 import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
 
-import osmlab.io.AbstractHighwaySink;
 import osmlab.io.Cartographer;
 import osmlab.io.HighwayNodeSegmenter;
 import osmlab.io.StatisticsSink;
@@ -36,7 +37,6 @@ import osmlab.proto.OsmLight.SimpleNode;
 import osmlab.proto.OsmLight.SimpleWay;
 import osmlab.sink.ByteUtils;
 
-import com.carrotsearch.hppc.LongOpenHashSet;
 import com.google.protobuf.Parser;
 
 public class DataPreparer {
@@ -467,15 +467,15 @@ public class DataPreparer {
 
 		try (Cartographer cartographer = new Cartographer(mapName)) {
 
-			HighwayNodeSegmenter hNodeSink = new HighwayNodeSegmenter(
-					cartographer, highwayNodes);
+//			HighwayNodeSegmenter hNodeSink = new HighwayNodeSegmenter(
+//					cartographer, highwayNodes);
 
 			RunnableSource reader;
 
 			reader = new crosby.binary.osmosis.OsmosisReader(
 					new FileInputStream(inputFile));
 
-			reader.setSink(hNodeSink);
+//			reader.setSink(hNodeSink);
 
 			Thread readerThread = new Thread(reader);
 			readerThread.start();

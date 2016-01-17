@@ -10,7 +10,8 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.FileNotFoundException;
+import java.io.File;
+import java.io.FilenameFilter;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -22,24 +23,15 @@ import javax.swing.JPanel;
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.JMapViewerTree;
-import org.openstreetmap.gui.jmapviewer.Layer;
-import org.openstreetmap.gui.jmapviewer.LayerGroup;
-import org.openstreetmap.gui.jmapviewer.MapMarkerCircle;
-import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
-import org.openstreetmap.gui.jmapviewer.MapPolygonImpl;
-import org.openstreetmap.gui.jmapviewer.MapRectangleImpl;
 import org.openstreetmap.gui.jmapviewer.OsmTileLoader;
 import org.openstreetmap.gui.jmapviewer.events.JMVCommandEvent;
 import org.openstreetmap.gui.jmapviewer.interfaces.JMapViewerEventListener;
-import org.openstreetmap.gui.jmapviewer.interfaces.MapPolygon;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.BingAerialTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOpenAerialTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOsmTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
-
-import osm.map.Graph;
 
 /**
  * Demonstrates the usage of {@link JMapViewer}
@@ -68,16 +60,8 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         
         String cacheFolder = "JMapViewerCache";
         boolean doCaching = true;
-        
-        Graph graph = null;
-        try {
-			graph = Graph.createGraph("saarland-latest.osm.pbf");
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-        
-        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching,graph);
+                
+        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching);
 
         // Listen to the map viewer for user operations so components will
         // receive events and update
@@ -124,6 +108,12 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
                 map().setTileSource((TileSource) e.getItem());
             }
         });
+        
+
+        String[] files = new File(System.getProperty("user.dir")).list((dir,name) -> name.endsWith("osm.pbf"));
+        JComboBox<String> osmFileSelector = new JComboBox<String>(files);
+        panelTop.add(osmFileSelector);
+        
         JComboBox<TileLoader> tileLoaderSelector;
         tileLoaderSelector = new JComboBox<>(new TileLoader[] {new OsmTileLoader(map(), cacheFolder, doCaching)});
         tileLoaderSelector.addItemListener(new ItemListener() {

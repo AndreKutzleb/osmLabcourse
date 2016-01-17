@@ -2,6 +2,8 @@ package osm.map;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.function.IntConsumer;
+import java.util.function.IntFunction;
 
 import org.apache.commons.lang3.SerializationUtils;
 
@@ -14,9 +16,10 @@ public class Graph {
 	 * Gives the offset in the data array for a given node id.
 	 */
 	private final int[] offsets;
-	
+
 	/**
-	 * Contains lat/lon of each node as well as edges from each node to other nodes
+	 * Contains lat/lon of each node as well as edges from each node to other
+	 * nodes
 	 */
 	private final int[] data;
 
@@ -28,16 +31,19 @@ public class Graph {
 	 * 
 	 * @throws FileNotFoundException
 	 */
-	public static Graph createGraph(String sourceFilePath) throws FileNotFoundException {
+	public static Graph createGraph(String sourceFilePath)
+			throws FileNotFoundException {
 
 		PipelinePaths paths = new PipelinePaths(sourceFilePath);
 
-		int[] data = SerializationUtils.deserialize(new FileInputStream(paths.DATA_ARRAY));
-		int[] offsets = SerializationUtils.deserialize(new FileInputStream(paths.OFFSET_ARRAY));
-		
-		return new Graph (data, offsets);
+		int[] data = SerializationUtils.deserialize(new FileInputStream(
+				paths.DATA_ARRAY));
+		int[] offsets = SerializationUtils.deserialize(new FileInputStream(
+				paths.OFFSET_ARRAY));
+
+		return new Graph(data, offsets);
 	}
-	
+
 	public Graph(int[] data, int[] offsets) {
 		this.data = data;
 		this.offsets = offsets;
@@ -53,45 +59,48 @@ public class Graph {
 		float lat = Float.intBitsToFloat(latBits);
 		return lat;
 	}
-	
+
 	/**
 	 * @param node
 	 * @return Latitude of given node
 	 */
 	public float lonOf(int node) {
-		int offset = offsets[node]+1;
+		int offset = offsets[node] + 1;
 		int lonBits = data[offset];
 		float lon = Float.intBitsToFloat(lonBits);
 		return lon;
 	}
 
-
 	/**
-	 * @return Number of nodes == all ids if iterated up to, but excluding this number
+	 * @return Number of nodes == all ids if iterated up to, but excluding this
+	 *         number
 	 */
 	public int getNodeCount() {
 		return offsets.length;
 	}
 
 	/**
-	 * Calculates the distance between the coordinates of the given node and the lat and lon supplied.
+	 * Calculates the distance between the coordinates of the given node and the
+	 * lat and lon supplied.
 	 * 
-	 * @param node distance from this node
-	 * @param toLat to this lat
-	 * @param toLon and this lon
+	 * @param node
+	 *            distance from this node
+	 * @param toLat
+	 *            to this lat
+	 * @param toLon
+	 *            and this lon
 	 * 
 	 * @return distance in meters.
 	 */
 	public float distance(int node, float toLat, float toLon) {
 		float latOfNode = latOf(node);
 		float lonOfNode = lonOf(node);
-		
+
 		float distance = GeoUtils.distFrom(latOfNode, lonOfNode, toLat, toLon);
-		
+
 		return distance;
 	}
-	
-	
+
 	/**
 	 * Finds closest node using distance comparison with all existing nodes
 	 * 
@@ -103,19 +112,36 @@ public class Graph {
 		// TODO , naive algorithm
 		float minDist = Integer.MAX_VALUE;
 		int minDistNode = 0;
-		
-		for(int i = 0; i < getNodeCount(); i++) {
+
+		for (int i = 0; i < getNodeCount(); i++) {
 
 			float distance = distance(i, toLat, toLon);
-			
-			if(distance < minDist) {
+
+			if (distance < minDist) {
 				minDist = distance;
 				minDistNode = i;
 			}
 		}
-		
+
 		return minDistNode;
 	}
-	
+
+	public int findNodeClosestTo(double toLat, double toLon) {
+		return findNodeClosestTo((float) toLat, (float) toLon);
+	}
+
+	public void forEachNeighbourOf(int node, IntConsumer action) {
+		int offset = offsets[node] + 2; // skip lat and lon
+		int upperLimit;
+		if (node + 1 == getNodeCount()) {
+			upperLimit = getNodeCount();
+		} else {
+			upperLimit = offsets[node + 1];
+		}
+		for (int i = offset; offset < upperLimit; offset++) {
+			int neigbour = data[i];
+			action.accept(neigbour);
+		}
+	}
 
 }

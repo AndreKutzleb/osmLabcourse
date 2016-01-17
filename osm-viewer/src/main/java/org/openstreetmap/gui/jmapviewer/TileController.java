@@ -28,6 +28,7 @@ public class TileController {
      *         was not found in the cache.
      */
     public Tile getTile(int tilex, int tiley, int zoom) {
+    
         int max = 1 << zoom;
         if (tilex < 0 || tilex >= max || tiley < 0 || tiley >= max)
             return null;
