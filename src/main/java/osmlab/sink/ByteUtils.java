@@ -42,6 +42,10 @@ public class ByteUtils {
 		
 		return edge;
 	}
+
+	public static int decodeNeighbour(int edge) {
+		return edge >>> 5;
+	}
 	
 	
 }

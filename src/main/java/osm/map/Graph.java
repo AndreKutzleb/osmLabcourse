@@ -3,11 +3,11 @@ package osm.map;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.function.IntConsumer;
-import java.util.function.IntFunction;
 
 import org.apache.commons.lang3.SerializationUtils;
 
 import osm.preprocessing.PipelineParts.PipelinePaths;
+import osmlab.sink.ByteUtils;
 import osmlab.sink.GeoUtils;
 
 public class Graph {
@@ -101,34 +101,44 @@ public class Graph {
 		return distance;
 	}
 
-	/**
-	 * Finds closest node using distance comparison with all existing nodes
-	 * 
-	 * @param toLat
-	 * @param toLon
-	 * @return
-	 */
-	public int findNodeClosestTo(float toLat, float toLon) {
-		// TODO , naive algorithm
-		float minDist = Integer.MAX_VALUE;
-		int minDistNode = 0;
+	public float distanceFast(int node, float lat, float lon) {
+		float latOfNode = latOf(node);
+		float lonOfNode = lonOf(node);
 
-		for (int i = 0; i < getNodeCount(); i++) {
-
-			float distance = distance(i, toLat, toLon);
-
-			if (distance < minDist) {
-				minDist = distance;
-				minDistNode = i;
-			}
-		}
-
-		return minDistNode;
+		float y = latOfNode - lat;
+		float x = lonOfNode - lon;
+		float dist = (float) Math.sqrt(x * x + y * y);
+		return dist;
 	}
 
-	public int findNodeClosestTo(double toLat, double toLon) {
-		return findNodeClosestTo((float) toLat, (float) toLon);
-	}
+	// /**
+	// * Finds closest node using distance comparison with all existing nodes
+	// *
+	// * @param toLat
+	// * @param toLon
+	// * @return
+	// */
+	// public int findNodeClosestTo(float toLat, float toLon) {
+	// // TODO , naive algorithm
+	// float minDist = Integer.MAX_VALUE;
+	// int minDistNode = 0;
+	//
+	// for (int i = 0; i < getNodeCount(); i++) {
+	//
+	// float distance = distance(i, toLat, toLon);
+	//
+	// if (distance < minDist) {
+	// minDist = distance;
+	// minDistNode = i;
+	// }
+	// }
+	//
+	// return minDistNode;
+	// }
+	//
+	// public int findNodeClosestTo(double toLat, double toLon) {
+	// return findNodeClosestTo((float) toLat, (float) toLon);
+	// }
 
 	public void forEachNeighbourOf(int node, IntConsumer action) {
 		int offset = offsets[node] + 2; // skip lat and lon
@@ -138,9 +148,54 @@ public class Graph {
 		} else {
 			upperLimit = offsets[node + 1];
 		}
-		for (int i = offset; offset < upperLimit; offset++) {
-			int neigbour = data[i];
+		for (int i = offset; i < upperLimit; i++) {
+			int neigbour = ByteUtils.decodeNeighbour(data[i]);
 			action.accept(neigbour);
+		}
+	}
+
+	public void forEachNeighbourOf(int node, IntConsumer action, int depth) {
+		if (depth > 0) {
+			forEachNeighbourOf(node, neighbour -> {
+				action.accept(neighbour);
+				forEachNeighbourOf(neighbour, action, depth - 1);
+			});
+
+		}
+	}
+
+	public int neighbourCount(int node) {
+		int offset = offsets[node] + 2; // skip lat and lon
+		int upperLimit;
+		if (node + 1 == getNodeCount()) {
+			upperLimit = getNodeCount();
+		} else {
+			upperLimit = offsets[node + 1];
+		}
+		return upperLimit - offset;
+	}
+
+	public void forEachEdgeOf(int node, IntBiConsumer action) {
+		int offset = offsets[node] + 2; // skip lat and lon
+		int upperLimit;
+		if (node + 1 == getNodeCount()) {
+			upperLimit = getNodeCount();
+		} else {
+			upperLimit = offsets[node + 1];
+		}
+		for (int i = offset; i < upperLimit; i++) {
+			int neigbour = ByteUtils.decodeNeighbour(data[i]);
+			action.accept(node, neigbour);
+		}
+	}
+
+	public void forEachEdgeOf(int node, IntBiConsumer action, int depth) {
+		if (depth > 0) {
+			forEachEdgeOf(node, (from, to) -> {
+				action.accept(from, to);
+				forEachEdgeOf(to, action, depth - 1);
+			});
+
 		}
 	}
 

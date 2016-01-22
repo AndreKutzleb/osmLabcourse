@@ -1,10 +1,11 @@
 package osm.map;
 
 import java.util.Random;
+import java.util.function.IntConsumer;
 
 public class GraphClickFinder {
 	
-	private static final int numberOfRandomStartNodes = 1000;
+	private static final int numberOfRandomStartNodes = 50000;
 
 	private final Graph graph;
 	private final Random rand = new Random(0);
@@ -15,6 +16,7 @@ public class GraphClickFinder {
 
 	public int findClosestNodeTo(float toLat, float toLon) {
 		int closestStartNode = findClosestStartNode(toLat,toLon);
+		return new Dijkstra(graph).findClosestNodeDijkstra(closestStartNode, toLat, toLon);
 	}
 
 	private int findClosestStartNode(float toLat, float toLon) {
@@ -26,12 +28,11 @@ public class GraphClickFinder {
 			float distance = graph.distance(randomNode, toLat, toLon);
 			
 			if(distance < minDist) {
-				distance = minDist;
+				minDist = distance;
 				minDistNode = randomNode;
 			}
 			
 		}
-		
 		return minDistNode;
 	}
 	
