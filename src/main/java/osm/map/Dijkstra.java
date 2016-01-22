@@ -23,13 +23,13 @@ public class Dijkstra {
 	final int[] successor;
 	final boolean[] visited;
 	final IntHeapIndirectPriorityQueue queue;
-	
+
 	private void resetData() {
 		Arrays.fill(refArray, 0);
 		Arrays.fill(visited, false);
 		queue.clear();
 	}
-	
+
 	int latestSource = 0;
 
 	public Dijkstra(Graph graph) {
@@ -204,11 +204,11 @@ public class Dijkstra {
 
 	public IntList findPathDijkstraFast(int fromNode, int toNode) {
 
-		if(latestSource != fromNode) {
+		if (latestSource != fromNode) {
 			resetData();
 			latestSource = fromNode;
 		}
-		
+
 		FloatPoint middle = GeoUtils
 				.midPoint(graph.latOf(fromNode), graph.lonOf(fromNode),
 						graph.latOf(toNode), graph.lonOf(toNode));
@@ -264,13 +264,51 @@ public class Dijkstra {
 								}
 							}
 
-							else /*if (graph.distanceFast(neighbour, middle.lat,
-									middle.lon) < maxRadius)*/ {
+							else /*
+								 * if (graph.distanceFast(neighbour, middle.lat,
+								 * middle.lon) < maxRadius)
+								 */{
+								// fastforward
 								int distanceFromNext = distanceToVisited + 1;
-								int neighboursOfNeighbour = graph.neighbourCount(neighbour);
-								refArray[neighbour] = distanceFromNext;
-								successor[neighbour] = next;
-								queue.enqueue(neighbour);
+
+								int beforeNeighbour = next;
+								int currNeighbour = neighbour;
+								// while(true)
+								int nextNeighbour = graph.neighbourOf(
+										currNeighbour, beforeNeighbour);
+								while (graph.neighbourCount(currNeighbour) == 2
+										&& !visited[nextNeighbour]) {
+									visited[currNeighbour] = true;
+									successor[currNeighbour] = beforeNeighbour;
+									beforeNeighbour = currNeighbour;
+									currNeighbour = nextNeighbour;
+									nextNeighbour = graph.neighbourOf(
+											currNeighbour, beforeNeighbour);
+									distanceFromNext++;
+									if (currNeighbour == toNode) {
+										break;
+									}
+								}
+
+								if (queue.contains(currNeighbour)) {
+
+									int distanceToStartOfNeighbour = refArray[currNeighbour];
+
+									boolean improvement = distanceFromNext < distanceToStartOfNeighbour
+											|| distanceToStartOfNeighbour == 0;
+
+									if (improvement) {
+										// can get there faster
+										refArray[currNeighbour] = distanceFromNext;
+										successor[currNeighbour] = beforeNeighbour;
+										queue.changed(currNeighbour);
+									}
+
+								} else {
+									refArray[currNeighbour] = distanceFromNext;
+									successor[currNeighbour] = beforeNeighbour;;
+									queue.enqueue(currNeighbour);
+								}
 							}
 						}
 
@@ -282,12 +320,15 @@ public class Dijkstra {
 		int current = toNode;
 		path.add(toNode);
 		while ((current = successor[current]) != fromNode) {
+			if (current == successor[current]) {
+				throw new IllegalStateException("invalid path: " + path + " + "
+						+ current);
+			}
 			path.add(current);
 		}
 		path.add(fromNode);
 		// TODO reverse
 		return path;
 	}
-
 
 }

@@ -199,4 +199,21 @@ public class Graph {
 		}
 	}
 
+	public int neighbourOf(int node, int notThisNeighbour) {
+		int offset = offsets[node] + 2; // skip lat and lon
+		int upperLimit;
+		if (node + 1 == getNodeCount()) {
+			upperLimit = getNodeCount();
+		} else {
+			upperLimit = offsets[node + 1];
+		}
+		for (int i = offset; i < upperLimit; i++) {
+			int neighbour = ByteUtils.decodeNeighbour(data[i]);
+			if(neighbour != notThisNeighbour) {
+				return neighbour;
+			}
+		}
+		return ByteUtils.decodeNeighbour(data[offset]);
+	}
+
 }
