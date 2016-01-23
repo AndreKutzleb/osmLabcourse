@@ -1,7 +1,9 @@
 package osm.map;
 
+import java.awt.geom.Line2D;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.Random;
 import java.util.function.IntConsumer;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -9,6 +11,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import osm.preprocessing.PipelineParts.PipelinePaths;
 import osmlab.sink.ByteUtils;
 import osmlab.sink.GeoUtils;
+import osmlab.sink.GeoUtils.FloatPoint;
 
 public class Graph {
 
@@ -111,9 +114,34 @@ public class Graph {
 		return dist;
 	}
 	
+	private final Random rand = new Random();
 	public int distanceFastInt(int nodeA, int nodeB) {
+		// FIXME RANDOM
 		float distanceFloat = distanceFast(nodeA, latOf(nodeB), lonOf(nodeB));
-		return Math.max(1,Math.round(distanceFloat*100));
+		return Math.max(1,Math.round(distanceFloat*100)) + rand.nextInt(1000);
+	}
+	
+	public FloatPoint pointAtPercent(int fromNode, int toNode, float percent) {
+		
+		float fromLat = latOf(fromNode);
+		float fromLon = lonOf(fromNode);
+		
+		float toLat = latOf(toNode);
+		float toLon = lonOf(toNode);
+		
+		// make from the 0-point
+		float toLatNull = toLat - fromLat;
+		float toLonNull = toLon - fromLon;
+		
+		// shorten vector
+		toLatNull*= percent;
+		toLonNull*= percent;
+		
+		// add original origin back
+		toLatNull+= fromLat;
+		toLonNull+= fromLon;
+		
+		return new FloatPoint(toLatNull, toLonNull);
 	}
 
 

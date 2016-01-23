@@ -70,6 +70,14 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         pedestrianProgress = new JProgressBar();
         carShortestProgress = new JProgressBar();
         carFastestProgress = new JProgressBar();
+        pedestrianProgress.setVisible(false);
+        carShortestProgress.setVisible(false);
+        carFastestProgress.setVisible(false);
+        
+		pedestrianProgress.setStringPainted(true);
+		carShortestProgress.setStringPainted(true);
+		carFastestProgress.setStringPainted(true);
+		
         treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching,pedestrianProgress,carShortestProgress,carFastestProgress);
 
         // Listen to the map viewer for user operations so components will
@@ -82,9 +90,6 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         JPanel panel = new JPanel();
         JPanel panelTop = new JPanel();
 
-        panelTop.add(pedestrianProgress);
-        panelTop.add(carShortestProgress);
-        panelTop.add(carFastestProgress);
         JPanel panelBottom = new JPanel();
         JPanel helpPanel = new JPanel();
 
@@ -198,6 +203,8 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         panelTop.add(zoomValue);
         panelTop.add(mperpLabelName);
         panelTop.add(mperpLabelValue);
+        
+       
 
         add(treeMap, BorderLayout.CENTER);
 
@@ -236,6 +243,11 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         // map.setDisplayPosition(new Coordinate(49.807, 8.6), 11);
         // map.setTileGridVisible(true);
 
+        helpPanel.add(pedestrianProgress);
+        helpPanel.add(carShortestProgress);
+        helpPanel.add(carFastestProgress);
+    
+        
         map().addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {

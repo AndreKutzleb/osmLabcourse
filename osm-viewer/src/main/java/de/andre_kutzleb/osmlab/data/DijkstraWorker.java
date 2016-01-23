@@ -19,7 +19,7 @@ public class DijkstraWorker extends SwingWorker<Integer, String>{
 	  @Override
 	  protected Integer doInBackground() throws Exception {
 		  
-		  dijkstra.findPathDijkstraFast(startNode, this::setProgress);
+		  dijkstra.precalculateDijkstra(startNode, this::setProgress);
 //	    // Start
 //	    publish("Start");
 //	    setProgress(1);

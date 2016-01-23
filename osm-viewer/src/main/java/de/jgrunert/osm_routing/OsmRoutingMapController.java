@@ -3,19 +3,19 @@ package de.jgrunert.osm_routing;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
-
+import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Point;
+import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
-import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -23,14 +23,12 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
-import java.util.function.IntConsumer;
-
+import java.util.concurrent.Semaphore;
 
 import javax.swing.JProgressBar;
 
 import net.sf.geographiclib.Geodesic;
 import net.sf.geographiclib.GeodesicData;
-
 
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapController;
@@ -39,12 +37,12 @@ import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.MapPolygonImpl;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 
-
-import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 import osm.map.Dijkstra;
+import osm.map.Dijkstra.TravelType;
 import osm.map.Graph;
 import osm.map.GraphClickFinder;
-import osm.map.Dijkstra.TravelType;
+import osmlab.sink.GeoUtils.FloatPoint;
+import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 
 /**
  * Default map controller which implements map moving by pressing the right
@@ -96,16 +94,16 @@ public class OsmRoutingMapController extends JMapController implements
 	private final Dijkstra dijkstraPedestrian;
 	private final Dijkstra dijkstraCarShortest;
 	private final Dijkstra dijkstraCarFastest;
-private JProgressBar ped;
-private JProgressBar carS;
-private JProgressBar carF;
-	
-	
-	public OsmRoutingMapController(JMapViewer map,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+	private JProgressBar ped;
+	private JProgressBar carS;
+	private JProgressBar carF;
+
+	public OsmRoutingMapController(JMapViewer map, JProgressBar ped,
+			JProgressBar carS, JProgressBar carF) {
 		super(map);
-this.ped = ped;
-this.carS = carS;
-this.carF = carF;
+		this.ped = ped;
+		this.carS = carS;
+		this.carF = carF;
 
 		Graph graph = null;
 		try {
@@ -116,10 +114,10 @@ this.carF = carF;
 			e.printStackTrace();
 		}
 		this.graph = graph;
-		this.dijkstraPedestrian = new Dijkstra(graph,TravelType.PEDESTRIAN);
-		this.dijkstraCarShortest = new Dijkstra(graph,TravelType.CAR_SHORTEST);
-		this.dijkstraCarFastest = new Dijkstra(graph,TravelType.CAR_FASTEST);
-		
+		this.dijkstraPedestrian = new Dijkstra(graph, TravelType.PEDESTRIAN);
+		this.dijkstraCarShortest = new Dijkstra(graph, TravelType.CAR_SHORTEST);
+		this.dijkstraCarFastest = new Dijkstra(graph, TravelType.CAR_FASTEST);
+
 		//
 		// try {
 		// loadOsmData();
@@ -240,10 +238,9 @@ this.carF = carF;
 		}
 	}
 
-	int startNode = 0;
-	int stopNode = 0;
 	MapMarkerDot startDot = null;
 	MapMarkerDot stopDot = null;
+	int stopDotNode = 0;
 
 	@Override
 	public void mouseClicked(MouseEvent e) {
@@ -277,33 +274,38 @@ this.carF = carF;
 			boolean leftMouse = e.getButton() == MouseEvent.BUTTON1;
 
 			if (leftMouse) {
-				map.removeMapMarker(startDot);
-				startDot = new MapMarkerDot("Start", new Coordinate(
-						graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
-				map.addMapMarker(startDot);
-				startNode = clickNextPt;
-				onLeftClick(startNode);
+				boolean canMoveStart = onLeftClick(clickNextPt);
+				if (canMoveStart) {
+					map.removeMapMarker(startDot);
+					startDot = new MapMarkerDot("Start", new Coordinate(
+							graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
+					map.addMapMarker(startDot);
+				}
 			} else {
+				onRightClick(clickNextPt);
 				map.removeMapMarker(stopDot);
 				stopDot = new MapMarkerDot("Destination", new Coordinate(
 						graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
+				stopDotNode = clickNextPt;
 				map.addMapMarker(stopDot);
-				stopNode = clickNextPt;
+
 			}
-			if(true) {
+			if (true) {
 				return;
 			}
- 			if (startDot != null && stopDot != null) {
+			if (startDot != null && stopDot != null) {
 				System.out.println("starting do dijkstra yo");
 				IntList findPathDijkstra;
 				long before = System.currentTimeMillis();
-//				findPathDijkstra = dijkstra.findPathDijkstra(startNode, stopNode);
+				// findPathDijkstra = dijkstra.findPathDijkstra(startNode,
+				// stopNode);
 				long middle = System.currentTimeMillis();
-				findPathDijkstra = null;//dijkstra.findPathDijkstraFast(startNode, stopNode);
+				findPathDijkstra = null;// dijkstra.findPathDijkstraFast(startNode,
+										// stopNode);
 				long after = System.currentTimeMillis();
-				
-				System.out.println("normal: " + (middle-before)+"ms");
-				System.out.println("fast:" + (after -middle)+"ms");
+
+				System.out.println("normal: " + (middle - before) + "ms");
+				System.out.println("fast:" + (after - middle) + "ms");
 				map.removeAllMapPolygons();
 				for (int i = 1; i < findPathDijkstra.size(); i++) {
 
@@ -340,24 +342,139 @@ this.carF = carF;
 		}
 	}
 
-	private void onLeftClick(int startNode) {
-		DijkstraWorker pedestrian = new DijkstraWorker(dijkstraPedestrian,startNode);
-		DijkstraWorker carShortest = new DijkstraWorker(dijkstraCarShortest,startNode);
-		DijkstraWorker carFastest = new DijkstraWorker(dijkstraCarFastest,startNode);
+	// 1 needed to set new target, 2 needed to move destination.
+	// after first successful run of dijkstra from a start Node and 
+	//from then on out, semaphore has 2 permits
+	private final Semaphore dijkstraMutex = new Semaphore(1);
+
+	private boolean onLeftClick(int startNode) {
+
+		boolean gotLock = dijkstraMutex.tryAcquire();
+
+		if (!gotLock) {
+			return false;
+		}
+		final DijkstraWorker pedestrian = new DijkstraWorker(
+				dijkstraPedestrian, startNode);
+		final DijkstraWorker carShortest = new DijkstraWorker(
+				dijkstraCarShortest, startNode);
+		final DijkstraWorker carFastest = new DijkstraWorker(
+				dijkstraCarFastest, startNode);
+
+        ped.setVisible(true);
+        carS.setVisible(true);
+        carF.setVisible(true);
 		
 		PropertyChangeListener p = (c) -> {
 			ped.setValue(pedestrian.getProgress());
 			carS.setValue(carShortest.getProgress());
 			carF.setValue(carFastest.getProgress());
+
+			ped.setString("Pedestrian: " + pedestrian.getProgress() + "%");
+			carS.setString("Car Shortest: " + carShortest.getProgress() + "%");
+			carF.setString("Car Fastest: " + carFastest.getProgress() + "%");
+
+			float avgPercent = (pedestrian.getProgress()+carShortest.getProgress() +carFastest.getProgress())/300f;
+			//draw temporary direct air line
+			if (stopDot != null) {
+				drawTempLine(startNode, stopDotNode,avgPercent);
+				}
 			
+			if (pedestrian.isDone() && carShortest.isDone()
+					&& carFastest.isDone()) {
+				
+
+	
+				
+				// avoid setting destination before source by
+				// only releasing 2 permits after first successful
+				// dijkstra run.
+				if(dijkstraMutex.availablePermits() == 0) {
+					dijkstraMutex.release(2);
+				} else {
+					dijkstraMutex.release();					
+				}
+				
+		        ped.setVisible(false);
+		        carS.setVisible(false);
+		        carF.setVisible(false);
+				
+				// in case there is already a destination, instantly show the path
+				if (stopDot != null) {
+					onRightClick(stopDotNode);
+				}
+			}
+
 		};
+		
 		pedestrian.addPropertyChangeListener(p);
 		carShortest.addPropertyChangeListener(p);
 		carFastest.addPropertyChangeListener(p);
-		
 		pedestrian.execute();
 		carShortest.execute();
 		carFastest.execute();
+		
+		map.removeAllMapPolygons();
+		
+
+		return true;
+	}
+	
+	private void drawTempLine(int fromNode, int toNode, float percent) {
+		map.removeAllMapPolygons();
+		Coordinate a = new Coordinate(graph.latOf(fromNode),
+				graph.lonOf(fromNode));
+		FloatPoint percentPoint = graph.pointAtPercent(fromNode, toNode, percent);
+		Coordinate b = new Coordinate(percentPoint.lat,percentPoint.lon);
+
+		MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
+//		  Stroke dashed = new BasicStroke(2.0f, BasicStroke.CAP_BUTT,
+//	                BasicStroke.JOIN_MITER, 10.0f, new float[]{5f}, 0.0f);
+//		  
+		  int perc = Math.round(percent*100);
+		  routPoly.setName(perc+"%");
+		routPoly.setColor(Color.DARK_GRAY);
+		map.addMapPolygon(routPoly);
+	}
+
+	private boolean onRightClick(int destinationNode) {
+
+		boolean gotLock = dijkstraMutex.tryAcquire(2);
+
+		if (!gotLock) {
+			return false;
+		}
+		IntList pedestrianPath = dijkstraPedestrian.getPath(destinationNode);
+		IntList carShortestPath = dijkstraCarShortest.getPath(destinationNode);
+		IntList carFastestPath = dijkstraCarFastest.getPath(destinationNode);
+		
+		
+		map.removeAllMapPolygons();
+		
+		drawPath(pedestrianPath,Color.GREEN);
+		drawPath(carShortestPath,Color.RED);
+		drawPath(carFastestPath,Color.BLUE);
+		
+		dijkstraMutex.release(2);
+		return true;
+
+	}
+
+	private void drawPath(IntList path,Color color) {
+		for (int i = 1; i < path.size(); i++) {
+
+			int from = path.getInt(i - 1);
+			int to = path.getInt(i);
+
+			Coordinate a = new Coordinate(graph.latOf(from),
+					graph.lonOf(from));
+			Coordinate b = new Coordinate(graph.latOf(to),
+					graph.lonOf(to));
+
+			MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
+			routPoly.setColor(color);
+			map.addMapPolygon(routPoly);
+		}	
 	}
 
 	/**
