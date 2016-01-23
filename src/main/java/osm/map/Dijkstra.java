@@ -251,7 +251,7 @@ public class Dijkstra {
 							if (queue.contains(neighbour)) {
 
 								int distanceToStartOfNeighbour = refArray[neighbour];
-								int distanceFromNext = distanceToVisited + 1;
+								int distanceFromNext = distanceToVisited + graph.distanceFastInt(next, neighbour);
 
 								boolean improvement = distanceFromNext < distanceToStartOfNeighbour
 										|| distanceToStartOfNeighbour == 0;
@@ -269,7 +269,7 @@ public class Dijkstra {
 								 * middle.lon) < maxRadius)
 								 */{
 								// fastforward
-								int distanceFromNext = distanceToVisited + 1;
+								int distanceFromNext = distanceToVisited + graph.distanceFastInt(next, neighbour);
 
 								int beforeNeighbour = next;
 								int currNeighbour = neighbour;
@@ -280,11 +280,12 @@ public class Dijkstra {
 										&& !visited[nextNeighbour]) {
 									visited[currNeighbour] = true;
 									successor[currNeighbour] = beforeNeighbour;
+									distanceFromNext+= graph.distanceFastInt(beforeNeighbour, currNeighbour);
+									
 									beforeNeighbour = currNeighbour;
 									currNeighbour = nextNeighbour;
 									nextNeighbour = graph.neighbourOf(
 											currNeighbour, beforeNeighbour);
-									distanceFromNext++;
 									if (currNeighbour == toNode) {
 										break;
 									}

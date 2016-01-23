@@ -110,6 +110,12 @@ public class Graph {
 		float dist = (float) Math.sqrt(x * x + y * y);
 		return dist;
 	}
+	
+	public int distanceFastInt(int nodeA, int nodeB) {
+		float distanceFloat = distanceFast(nodeA, latOf(nodeB), lonOf(nodeB));
+		return Math.max(1,Math.round(distanceFloat*100));
+	}
+
 
 	// /**
 	// * Finds closest node using distance comparison with all existing nodes
