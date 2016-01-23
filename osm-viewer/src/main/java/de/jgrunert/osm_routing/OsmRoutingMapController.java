@@ -340,10 +340,10 @@ this.carF = carF;
 		}
 	}
 
-	private void onLeftClick(int startNode2) {
-		DijkstraWorker pedestrian = new DijkstraWorker(dijkstraPedestrian);
-		DijkstraWorker carShortest = new DijkstraWorker(dijkstraCarShortest);
-		DijkstraWorker carFastest = new DijkstraWorker(dijkstraCarFastest);
+	private void onLeftClick(int startNode) {
+		DijkstraWorker pedestrian = new DijkstraWorker(dijkstraPedestrian,startNode);
+		DijkstraWorker carShortest = new DijkstraWorker(dijkstraCarShortest,startNode);
+		DijkstraWorker carFastest = new DijkstraWorker(dijkstraCarFastest,startNode);
 		
 		PropertyChangeListener p = (c) -> {
 			ped.setValue(pedestrian.getProgress());

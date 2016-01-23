@@ -9,26 +9,29 @@ import osm.map.Dijkstra;
 public class DijkstraWorker extends SwingWorker<Integer, String>{
 	
 	private final Dijkstra dijkstra;
+	private int startNode;
 	
-	public DijkstraWorker(Dijkstra dikjstra) {
+	public DijkstraWorker(Dijkstra dikjstra, int startNode) {
 		this.dijkstra = dikjstra;
+		this.startNode = startNode;
 	}
 	
 	  @Override
 	  protected Integer doInBackground() throws Exception {
 		  
-	    // Start
-	    publish("Start");
-	    setProgress(1);
-	    
-	    // More work was done
-	    publish("More work was done");
-	    setProgress(10);
-
-	    // Complete
-	    publish("Complete");
-	    setProgress(100);
-	    return 1;
+		  dijkstra.findPathDijkstraFast(startNode, this::setProgress);
+//	    // Start
+//	    publish("Start");
+//	    setProgress(1);
+//	    
+//	    // More work was done
+//	    publish("More work was done");
+//	    setProgress(10);
+//
+//	    // Complete
+//	    publish("Complete");
+//	    setProgress(100);
+	    return 100;
 	  }
 	  
 	  @Override

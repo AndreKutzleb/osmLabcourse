@@ -1,20 +1,20 @@
 package osm.map;
 
-import java.util.Arrays;
-import java.util.BitSet;
-
-import osmlab.sink.GeoUtils;
-import osmlab.sink.GeoUtils.FloatPoint;
 import it.unimi.dsi.fastutil.ints.Int2IntAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import it.unimi.dsi.fastutil.ints.IntHeapIndirectPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntHeapPriorityQueue;
-import it.unimi.dsi.fastutil.ints.IntHeapSemiIndirectPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+
+import java.util.Arrays;
+import java.util.function.IntConsumer;
+
+import osmlab.sink.GeoUtils;
+import osmlab.sink.GeoUtils.FloatPoint;
 
 public class Dijkstra {
 	
@@ -212,38 +212,43 @@ public class Dijkstra {
 		return path;
 	}
 
-	public IntList findPathDijkstraFast(int fromNode, int toNode) {
+	public void findPathDijkstraFast(int fromNode, IntConsumer progressConsumer) {
 
 		if (latestSource != fromNode) {
 			resetData();
 			latestSource = fromNode;
 		}
 
-		FloatPoint middle = GeoUtils
-				.midPoint(graph.latOf(fromNode), graph.lonOf(fromNode),
-						graph.latOf(toNode), graph.lonOf(toNode));
-		float maxRadius = GeoUtils.distFrom(middle.lat, middle.lon,
-				graph.latOf(fromNode), graph.lonOf(fromNode)) * 1.2f;
+			queue.enqueue(fromNode);
 
-		queue.enqueue(fromNode);
-		boolean targetFound = false;
-
+			int currentProgress = 0;
+			
+			progressConsumer.accept(0);
 		while (!queue.isEmpty()) {
 			// if(queue.size() % 1000 == 0) {
 			// System.out.println(queue.size());
 			// System.out.println("queueSize " + visited.size());
 			// }
 			int next = queue.dequeue();
-
-			if (next == toNode) {
-				targetFound = true;
-				break;
+			
+			int progress = (visitedCount) / (graph.getNodeCount()/100); // percent
+			
+			if(progress > currentProgress) {
+				currentProgress = progress;
+				progressConsumer.accept(currentProgress);
+				System.out.println("progress" + currentProgress);
+				System.out.println(visitedCount / (float) graph.getNodeCount());
+				System.out.println("visited:     " +visitedCount);
+				System.out.println("total:       " +graph.getNodeCount());
+			
+				System.out.println();
 			}
 
 			if (visited[next]) {
 				continue;
 			} else {
 				visited[next] = true;
+				visitedCount++;
 			}
 
 			int distanceToVisited = refArray[next];
@@ -291,6 +296,8 @@ public class Dijkstra {
 								while (graph.neighbourCount(currNeighbour) == 2
 										&& !visited[nextNeighbour]) {
 									visited[currNeighbour] = true;
+									visitedCount++;
+									
 									successor[currNeighbour] = beforeNeighbour;
 									distanceFromNext+= graph.distanceFastInt(beforeNeighbour, currNeighbour);
 									
@@ -298,9 +305,7 @@ public class Dijkstra {
 									currNeighbour = nextNeighbour;
 									nextNeighbour = graph.neighbourOf(
 											currNeighbour, beforeNeighbour);
-									if (currNeighbour == toNode) {
-										break;
-									}
+									
 								}
 
 								if (queue.contains(currNeighbour)) {
@@ -327,25 +332,36 @@ public class Dijkstra {
 
 					});
 		}
+		progressConsumer.accept(100);
 		
-
-		IntList path = new IntArrayList();
-		// no way possible.
-		if(!targetFound) {
-			return path; 
-		}
-
-		int current = toNode;
-		path.add(toNode);
-		while ((current = successor[current]) != fromNode) {
-			if (current == successor[current]) {
-				throw new IllegalStateException("invalid path: " + path + " + "
-						+ current);
+		int visitedCountOfArray = 0;
+		for(boolean b : visited) {
+			if(b) {
+				visitedCountOfArray++;
 			}
-			path.add(current);
 		}
-		path.add(fromNode);
-		return path;
+		System.out.println("arrayVisited:" +visitedCountOfArray);
+		System.out.println("visited:     " +visitedCount);
+		System.out.println("total:       " +graph.getNodeCount());
+		
+//
+//		IntList path = new IntArrayList();
+//		// no way possible.
+//		if(!visited[toNode]) {
+//			return path; 
+//		}
+//
+//		int current = toNode;
+//		path.add(toNode);
+//		while ((current = successor[current]) != fromNode) {
+//			if (current == successor[current]) {
+//				throw new IllegalStateException("invalid path: " + path + " + "
+//						+ current);
+//			}
+//			path.add(current);
+//		}
+//		path.add(fromNode);
+//		return path;
 	}
 
 }
