@@ -1,6 +1,7 @@
 package de.andre_kutzleb.osmlab.data;
 
 import java.util.List;
+import java.util.concurrent.Semaphore;
 
 import javax.swing.SwingWorker;
 
@@ -10,16 +11,19 @@ public class DijkstraWorker extends SwingWorker<Integer, String>{
 	
 	private final Dijkstra dijkstra;
 	private int startNode;
+	private final Semaphore dijkstraMutex;
 	
-	public DijkstraWorker(Dijkstra dikjstra, int startNode) {
+	public DijkstraWorker(Dijkstra dikjstra, int startNode, Semaphore dijkstraMutex) {
 		this.dijkstra = dikjstra;
 		this.startNode = startNode;
+		this.dijkstraMutex = dijkstraMutex;
 	}
 	
 	  @Override
 	  protected Integer doInBackground() throws Exception {
 		  
 		  dijkstra.precalculateDijkstra(startNode, this::setProgress);
+		  dijkstraMutex.release();
 //	    // Start
 //	    publish("Start");
 //	    setProgress(1);

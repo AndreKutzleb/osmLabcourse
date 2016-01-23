@@ -51,89 +51,6 @@ public class Dijkstra {
 		queue = new IntHeapIndirectPriorityQueue(refArray,graph.getNodeCount());
 	}
 
-	public static IntComparator getDijkstraComparator(Int2IntMap distanceToStart) {
-		IntComparator dijkstraComparator = new IntComparator() {
-
-			@Override
-			public int compare(Integer k1, Integer k2) {
-				int k1Dist = distanceToStart.get(k1);
-				int k2Dist = distanceToStart.get(k2);
-				return Integer.compare(k1Dist, k2Dist);
-			}
-
-			@Override
-			public int compare(int k1, int k2) {
-				int k1Dist = distanceToStart.get(k1);
-				int k2Dist = distanceToStart.get(k2);
-				return Integer.compare(k1Dist, k2Dist);
-			}
-		};
-
-		return dijkstraComparator;
-	}
-
-	public int findClosestNodeDijkstra(int fromNode, float toLat, float toLon) {
-
-		float distanceFromClick = graph.distance(fromNode, toLat, toLon);
-
-		float shortestFoundDistance = Integer.MAX_VALUE;
-		int shortestFoundDistanceNode = 0;
-
-		// evtl bloomfilter
-		final IntSet visited = new IntOpenHashSet();
-		final Int2IntMap distanceToStart = new Int2IntAVLTreeMap();
-		// final Int2IntMap successor = new Int2IntAVLTreeMap();
-		distanceToStart.defaultReturnValue(-1);
-
-		IntHeapPriorityQueue queue = new IntHeapPriorityQueue(
-				getDijkstraComparator(distanceToStart));
-
-		queue.enqueue(fromNode);
-		distanceToStart.put(fromNode, 0);
-
-		while (!queue.isEmpty()) {
-			if (queue.size() % 1000 == 0) {
-				System.out.println(queue.size());
-				System.out.println("queueSize " + visited.size());
-			}
-			int next = queue.dequeueInt();
-			visited.add(next);
-			int distanceToVisited = distanceToStart.get(next);
-
-			float geoDistToClick = graph.distance(next, toLat, toLon);
-			if (geoDistToClick < shortestFoundDistance) {
-				shortestFoundDistance = geoDistToClick;
-				shortestFoundDistanceNode = next;
-			}
-
-			graph.forEachNeighbourOf(
-					next,
-					(neighbour) -> {
-						if (!visited.contains(neighbour)
-								&& graph.distance(neighbour, toLat, toLon) < (1.1 * distanceFromClick)) {
-							// See if we can get there faster
-							int distanceToStartOfNeighbour = distanceToStart
-									.get(neighbour);
-							int distanceFromNext = distanceToVisited + 1;
-
-							if (distanceFromNext < distanceToStartOfNeighbour
-									|| distanceToStartOfNeighbour == -1) {
-								// can get there faster
-								distanceToStart
-										.put(neighbour, distanceFromNext);
-								// successor.put(neighbour, next);
-							}
-							// may cause multiple instances of ways to
-							// same node, but closest way will come first
-							queue.enqueue(neighbour);
-						}
-					});
-
-		}
-
-		return shortestFoundDistanceNode;
-	}
-
 	public IntList getPath(int toNode) {
 
 		
@@ -178,12 +95,16 @@ public class Dijkstra {
 			if(progress > currentProgress) {
 				currentProgress = progress;
 				progressConsumer.accept(currentProgress);
-				System.out.println("progress" + currentProgress);
-				System.out.println(visitedCount / (float) graph.getNodeCount());
-				System.out.println("visited:     " +visitedCount);
-				System.out.println("total:       " +graph.getNodeCount());
-			
-				System.out.println();
+//				System.out.println("progress" + currentProgress);
+//				System.out.println(visitedCount / (float) graph.getNodeCount());
+//				System.out.println("visited:     " +visitedCount);
+//				System.out.println("total:       " +graph.getNodeCount());
+//			
+//				System.out.println();
+//				
+				if(Thread.currentThread().isInterrupted()) {
+					return;
+				}
 			}
 
 			if (visited[next]) {

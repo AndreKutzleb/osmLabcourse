@@ -23,9 +23,11 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 
 import javax.swing.JProgressBar;
+import javax.swing.SwingWorker.StateValue;
 
 import net.sf.geographiclib.Geodesic;
 import net.sf.geographiclib.GeodesicData;
@@ -274,13 +276,16 @@ public class OsmRoutingMapController extends JMapController implements
 			boolean leftMouse = e.getButton() == MouseEvent.BUTTON1;
 
 			if (leftMouse) {
-				boolean canMoveStart = onLeftClick(clickNextPt);
-				if (canMoveStart) {
-					map.removeMapMarker(startDot);
-					startDot = new MapMarkerDot("Start", new Coordinate(
-							graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
-					map.addMapMarker(startDot);
+				try {
+					onLeftClick(clickNextPt);
+				} catch (InterruptedException e1) {
+					e1.printStackTrace();
 				}
+				map.removeMapMarker(startDot);
+				startDot = new MapMarkerDot("Start", new Coordinate(
+						graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
+				map.addMapMarker(startDot);
+
 			} else {
 				onRightClick(clickNextPt);
 				map.removeMapMarker(stopDot);
@@ -343,28 +348,46 @@ public class OsmRoutingMapController extends JMapController implements
 	}
 
 	// 1 needed to set new target, 2 needed to move destination.
-	// after first successful run of dijkstra from a start Node and 
-	//from then on out, semaphore has 2 permits
-	private final Semaphore dijkstraMutex = new Semaphore(1);
+	// after first successful run of dijkstra from a start Node and
+	// from then on out, semaphore has 2 permits
 
-	private boolean onLeftClick(int startNode) {
+	private final Semaphore dijkstraMutex = new Semaphore(3);
+	boolean canRoute = false;
 
-		boolean gotLock = dijkstraMutex.tryAcquire();
+	volatile DijkstraWorker pedestrianRef = null;
+	volatile DijkstraWorker carShortestRef = null;
+	volatile DijkstraWorker carFastestRef = null;
 
-		if (!gotLock) {
-			return false;
+	private void onLeftClick(int startNode) throws InterruptedException {
+
+		boolean canCalculate = dijkstraMutex.tryAcquire(3);
+
+		if (!canCalculate) {
+			// currently running calculation. stop it.
+			pedestrianRef.cancel(true);
+			carShortestRef.cancel(true);
+			carFastestRef.cancel(true);
+
+			// will wait for the old tasks to stop
+			dijkstraMutex.acquire(3);
 		}
-		final DijkstraWorker pedestrian = new DijkstraWorker(
-				dijkstraPedestrian, startNode);
-		final DijkstraWorker carShortest = new DijkstraWorker(
-				dijkstraCarShortest, startNode);
-		final DijkstraWorker carFastest = new DijkstraWorker(
-				dijkstraCarFastest, startNode);
+		canRoute = false;
 
-        ped.setVisible(true);
-        carS.setVisible(true);
-        carF.setVisible(true);
-		
+		final DijkstraWorker pedestrian = new DijkstraWorker(
+				dijkstraPedestrian, startNode, dijkstraMutex);
+		final DijkstraWorker carShortest = new DijkstraWorker(
+				dijkstraCarShortest, startNode, dijkstraMutex);
+		final DijkstraWorker carFastest = new DijkstraWorker(
+				dijkstraCarFastest, startNode, dijkstraMutex);
+
+		pedestrianRef = pedestrian;
+		carShortestRef = carShortest;
+		carFastestRef = carFastest;
+
+		ped.setVisible(true);
+		carS.setVisible(true);
+		carF.setVisible(true);
+
 		PropertyChangeListener p = (c) -> {
 			ped.setValue(pedestrian.getProgress());
 			carS.setValue(carShortest.getProgress());
@@ -374,107 +397,100 @@ public class OsmRoutingMapController extends JMapController implements
 			carS.setString("Car Shortest: " + carShortest.getProgress() + "%");
 			carF.setString("Car Fastest: " + carFastest.getProgress() + "%");
 
-			float avgPercent = (pedestrian.getProgress()+carShortest.getProgress() +carFastest.getProgress())/300f;
-			//draw temporary direct air line
+			float avgPercent = (pedestrian.getProgress()
+					+ carShortest.getProgress() + carFastest.getProgress()) / 300f;
+			// draw temporary direct air line
 			if (stopDot != null) {
-				drawTempLine(startNode, stopDotNode,avgPercent);
-				}
-			
-			if (pedestrian.isDone() && carShortest.isDone()
-					&& carFastest.isDone()) {
-				
+				drawTempLine(startNode, stopDotNode, avgPercent);
+			}
 
-	
-				
-				// avoid setting destination before source by
-				// only releasing 2 permits after first successful
-				// dijkstra run.
-				if(dijkstraMutex.availablePermits() == 0) {
-					dijkstraMutex.release(2);
-				} else {
-					dijkstraMutex.release();					
-				}
-				
-		        ped.setVisible(false);
-		        carS.setVisible(false);
-		        carF.setVisible(false);
-				
-				// in case there is already a destination, instantly show the path
-				if (stopDot != null) {
-					onRightClick(stopDotNode);
-				}
+			boolean stop = pedestrian.isDone() && carShortest.isDone()
+					&& carFastest.isDone();
+
+			boolean cancel = pedestrian.isCancelled()
+					|| carShortest.isCancelled() || carFastest.isCancelled();
+
+			if (stop) {
+				canRoute = true;
+			}
+
+			if (stopDot != null && !cancel) {
+				// in case there is already a destination, 
+				//instantly show the path
+				onRightClick(stopDotNode);
 			}
 
 		};
-		
+
 		pedestrian.addPropertyChangeListener(p);
 		carShortest.addPropertyChangeListener(p);
 		carFastest.addPropertyChangeListener(p);
 		pedestrian.execute();
 		carShortest.execute();
 		carFastest.execute();
-		
-		map.removeAllMapPolygons();
-		
 
-		return true;
+		map.removeAllMapPolygons();
+
 	}
-	
+
 	private void drawTempLine(int fromNode, int toNode, float percent) {
 		map.removeAllMapPolygons();
 		Coordinate a = new Coordinate(graph.latOf(fromNode),
 				graph.lonOf(fromNode));
-		FloatPoint percentPoint = graph.pointAtPercent(fromNode, toNode, percent);
-		Coordinate b = new Coordinate(percentPoint.lat,percentPoint.lon);
+		FloatPoint percentPoint = graph.pointAtPercent(fromNode, toNode,
+				percent);
+		Coordinate b = new Coordinate(percentPoint.lat, percentPoint.lon);
 
 		MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
-//		  Stroke dashed = new BasicStroke(2.0f, BasicStroke.CAP_BUTT,
-//	                BasicStroke.JOIN_MITER, 10.0f, new float[]{5f}, 0.0f);
-//		  
-		  int perc = Math.round(percent*100);
-		  routPoly.setName(perc+"%");
+		// Stroke dashed = new BasicStroke(2.0f, BasicStroke.CAP_BUTT,
+		// BasicStroke.JOIN_MITER, 10.0f, new float[]{5f}, 0.0f);
+		//
+		int perc = Math.round(percent * 100);
+		routPoly.setName(perc + "%");
 		routPoly.setColor(Color.DARK_GRAY);
 		map.addMapPolygon(routPoly);
 	}
 
 	private boolean onRightClick(int destinationNode) {
 
-		boolean gotLock = dijkstraMutex.tryAcquire(2);
+		boolean gotLock = dijkstraMutex.tryAcquire(3);
 
 		if (!gotLock) {
+			return false;
+		}
+
+		if (!canRoute) {
+			dijkstraMutex.release(3);
 			return false;
 		}
 		IntList pedestrianPath = dijkstraPedestrian.getPath(destinationNode);
 		IntList carShortestPath = dijkstraCarShortest.getPath(destinationNode);
 		IntList carFastestPath = dijkstraCarFastest.getPath(destinationNode);
-		
-		
+
 		map.removeAllMapPolygons();
-		
-		drawPath(pedestrianPath,Color.GREEN);
-		drawPath(carShortestPath,Color.RED);
-		drawPath(carFastestPath,Color.BLUE);
-		
-		dijkstraMutex.release(2);
+
+		drawPath(pedestrianPath, Color.GREEN);
+		drawPath(carShortestPath, Color.RED);
+		drawPath(carFastestPath, Color.BLUE);
+
+		dijkstraMutex.release(3);
 		return true;
 
 	}
 
-	private void drawPath(IntList path,Color color) {
+	private void drawPath(IntList path, Color color) {
 		for (int i = 1; i < path.size(); i++) {
 
 			int from = path.getInt(i - 1);
 			int to = path.getInt(i);
 
-			Coordinate a = new Coordinate(graph.latOf(from),
-					graph.lonOf(from));
-			Coordinate b = new Coordinate(graph.latOf(to),
-					graph.lonOf(to));
+			Coordinate a = new Coordinate(graph.latOf(from), graph.lonOf(from));
+			Coordinate b = new Coordinate(graph.latOf(to), graph.lonOf(to));
 
 			MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
 			routPoly.setColor(color);
 			map.addMapPolygon(routPoly);
-		}	
+		}
 	}
 
 	/**
