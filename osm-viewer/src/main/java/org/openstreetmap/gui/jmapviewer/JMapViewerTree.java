@@ -13,6 +13,7 @@ import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JProgressBar;
 import javax.swing.JSplitPane;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
@@ -34,11 +35,11 @@ public class JMapViewerTree extends JPanel{
     private JPanel treePanel;
     private JSplitPane splitPane;
 
-    public JMapViewerTree(String name, String cacheFolder, boolean doCaching) {
-        this(name, false, cacheFolder, doCaching);
+    public JMapViewerTree(String name, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+        this(name, false, cacheFolder, doCaching,ped,carS,carF);
     }
 
-    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching) {
+    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
         super();
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
@@ -47,7 +48,7 @@ public class JMapViewerTree extends JPanel{
         treePanel.setLayout(new BorderLayout());
         treePanel.add(tree, BorderLayout.CENTER);
         treePanel.add(new JLabel("<html><center>Use right mouse button to<br />show/hide texts</center></html>"), BorderLayout.SOUTH);
-        map = new JMapViewer(cacheFolder, doCaching);
+        map = new JMapViewer(cacheFolder, doCaching,ped,carS,carF);
 
         splitPane.setOneTouchExpandable(true);
         splitPane.setDividerLocation(150);

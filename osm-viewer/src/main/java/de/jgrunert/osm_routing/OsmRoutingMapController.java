@@ -3,12 +3,15 @@ package de.jgrunert.osm_routing;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
+
 import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -22,8 +25,12 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.IntConsumer;
 
+
+import javax.swing.JProgressBar;
+
 import net.sf.geographiclib.Geodesic;
 import net.sf.geographiclib.GeodesicData;
+
 
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapController;
@@ -32,6 +39,8 @@ import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.MapPolygonImpl;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 
+
+import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 import osm.map.Dijkstra;
 import osm.map.Graph;
 import osm.map.GraphClickFinder;
@@ -87,10 +96,16 @@ public class OsmRoutingMapController extends JMapController implements
 	private final Dijkstra dijkstraPedestrian;
 	private final Dijkstra dijkstraCarShortest;
 	private final Dijkstra dijkstraCarFastest;
+private JProgressBar ped;
+private JProgressBar carS;
+private JProgressBar carF;
 	
 	
-	public OsmRoutingMapController(JMapViewer map) {
+	public OsmRoutingMapController(JMapViewer map,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
 		super(map);
+this.ped = ped;
+this.carS = carS;
+this.carF = carF;
 
 		Graph graph = null;
 		try {
@@ -267,6 +282,7 @@ public class OsmRoutingMapController extends JMapController implements
 						graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
 				map.addMapMarker(startDot);
 				startNode = clickNextPt;
+				onLeftClick(startNode);
 			} else {
 				map.removeMapMarker(stopDot);
 				stopDot = new MapMarkerDot("Destination", new Coordinate(
@@ -274,8 +290,10 @@ public class OsmRoutingMapController extends JMapController implements
 				map.addMapMarker(stopDot);
 				stopNode = clickNextPt;
 			}
-
-			if (startDot != null && stopDot != null) {
+			if(true) {
+				return;
+			}
+ 			if (startDot != null && stopDot != null) {
 				System.out.println("starting do dijkstra yo");
 				IntList findPathDijkstra;
 				long before = System.currentTimeMillis();
@@ -320,6 +338,26 @@ public class OsmRoutingMapController extends JMapController implements
 			// Zoom on doubleclick
 			map.zoomIn(e.getPoint());
 		}
+	}
+
+	private void onLeftClick(int startNode2) {
+		DijkstraWorker pedestrian = new DijkstraWorker(dijkstraPedestrian);
+		DijkstraWorker carShortest = new DijkstraWorker(dijkstraCarShortest);
+		DijkstraWorker carFastest = new DijkstraWorker(dijkstraCarFastest);
+		
+		PropertyChangeListener p = (c) -> {
+			ped.setValue(pedestrian.getProgress());
+			carS.setValue(carShortest.getProgress());
+			carF.setValue(carFastest.getProgress());
+			
+		};
+		pedestrian.addPropertyChangeListener(p);
+		carShortest.addPropertyChangeListener(p);
+		carFastest.addPropertyChangeListener(p);
+		
+		pedestrian.execute();
+		carShortest.execute();
+		carFastest.execute();
 	}
 
 	/**

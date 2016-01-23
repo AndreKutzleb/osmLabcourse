@@ -16,6 +16,7 @@ import java.util.List;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -103,10 +104,10 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * {@link MemoryTileCache} and the tile loader uses 4 parallel threads for
      * retrieving the tiles.
      */
-    public JMapViewer(String cacheFolder, boolean doCaching) {
-        this(new MemoryTileCache(), cacheFolder, doCaching);
+    public JMapViewer(String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+        this(new MemoryTileCache(), cacheFolder, doCaching,ped,carS,carF);
         //new DefaultMapController(this);
-        new OsmRoutingMapController(this);
+        new OsmRoutingMapController(this,ped,carS,carF);
     }
 
     /**
@@ -115,8 +116,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @deprecated @param downloadThreadCount not used anymore
      */
     @Deprecated
-    public JMapViewer(TileCache tileCache, int downloadThreadCount, String cacheFolder, boolean doCaching) {
-        this(tileCache, cacheFolder, doCaching);
+    public JMapViewer(TileCache tileCache, int downloadThreadCount, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+        this(tileCache, cacheFolder, doCaching,ped,carS,carF);
     }
 
     /**
@@ -124,7 +125,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @param tileCache The cache where to store tiles
      *
      */
-    public JMapViewer(TileCache tileCache, String cacheFolder, boolean doCaching) {
+    public JMapViewer(TileCache tileCache, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
         tileSource = new OsmTileSource.Mapnik();
         tileController = new TileController(tileSource, tileCache, this, cacheFolder, doCaching);
         mapMarkerList = Collections.synchronizedList(new LinkedList<MapMarker>());

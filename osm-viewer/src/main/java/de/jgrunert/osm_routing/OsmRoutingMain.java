@@ -19,6 +19,7 @@ import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
@@ -50,6 +51,11 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
     private final JLabel mperpLabelName;
     private final JLabel mperpLabelValue;
+    
+    private final JProgressBar pedestrianProgress;
+    private final JProgressBar carShortestProgress;
+    private final JProgressBar carFastestProgress;
+    
 
     /**
      * Constructs the {@code Demo}.
@@ -60,8 +66,11 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         
         String cacheFolder = "JMapViewerCache";
         boolean doCaching = true;
-                
-        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching);
+
+        pedestrianProgress = new JProgressBar();
+        carShortestProgress = new JProgressBar();
+        carFastestProgress = new JProgressBar();
+        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching,pedestrianProgress,carShortestProgress,carFastestProgress);
 
         // Listen to the map viewer for user operations so components will
         // receive events and update
@@ -72,6 +81,10 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         JPanel panel = new JPanel();
         JPanel panelTop = new JPanel();
+
+        panelTop.add(pedestrianProgress);
+        panelTop.add(carShortestProgress);
+        panelTop.add(carFastestProgress);
         JPanel panelBottom = new JPanel();
         JPanel helpPanel = new JPanel();
 
