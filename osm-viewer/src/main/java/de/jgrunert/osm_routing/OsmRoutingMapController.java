@@ -35,6 +35,7 @@ import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 import osm.map.Dijkstra;
 import osm.map.Graph;
 import osm.map.GraphClickFinder;
+import osm.map.Dijkstra.TravelType;
 
 /**
  * Default map controller which implements map moving by pressing the right
@@ -83,8 +84,11 @@ public class OsmRoutingMapController extends JMapController implements
 	int[] edgesTarget = null;
 
 	private final Graph graph;
-	private final Dijkstra dijkstra;
-
+	private final Dijkstra dijkstraPedestrian;
+	private final Dijkstra dijkstraCarShortest;
+	private final Dijkstra dijkstraCarFastest;
+	
+	
 	public OsmRoutingMapController(JMapViewer map) {
 		super(map);
 
@@ -97,7 +101,10 @@ public class OsmRoutingMapController extends JMapController implements
 			e.printStackTrace();
 		}
 		this.graph = graph;
-		this.dijkstra = new Dijkstra(graph);
+		this.dijkstraPedestrian = new Dijkstra(graph,TravelType.PEDESTRIAN);
+		this.dijkstraCarShortest = new Dijkstra(graph,TravelType.CAR_SHORTEST);
+		this.dijkstraCarFastest = new Dijkstra(graph,TravelType.CAR_FASTEST);
+		
 		//
 		// try {
 		// loadOsmData();
@@ -274,7 +281,7 @@ public class OsmRoutingMapController extends JMapController implements
 				long before = System.currentTimeMillis();
 //				findPathDijkstra = dijkstra.findPathDijkstra(startNode, stopNode);
 				long middle = System.currentTimeMillis();
-				findPathDijkstra = dijkstra.findPathDijkstraFast(startNode, stopNode);
+				findPathDijkstra = null;//dijkstra.findPathDijkstraFast(startNode, stopNode);
 				long after = System.currentTimeMillis();
 				
 				System.out.println("normal: " + (middle-before)+"ms");

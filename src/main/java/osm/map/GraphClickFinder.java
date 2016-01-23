@@ -3,6 +3,8 @@ package osm.map;
 import java.util.Random;
 import java.util.function.IntConsumer;
 
+import osm.map.Dijkstra.TravelType;
+
 public class GraphClickFinder {
 	
 	private static final int numberOfRandomStartNodes = 50000;
@@ -16,7 +18,7 @@ public class GraphClickFinder {
 
 	public int findClosestNodeTo(float toLat, float toLon) {
 		int closestStartNode = findClosestStartNode(toLat,toLon);
-		return new Dijkstra(graph).findClosestNodeDijkstra(closestStartNode, toLat, toLon);
+		return new Dijkstra(graph,TravelType.CAR_FASTEST).findClosestNodeDijkstra(closestStartNode, toLat, toLon);
 	}
 
 	private int findClosestStartNode(float toLat, float toLon) {

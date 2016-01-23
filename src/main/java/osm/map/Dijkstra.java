@@ -17,27 +17,37 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 public class Dijkstra {
+	
+	public enum TravelType {
+		PEDESTRIAN,
+		CAR_SHORTEST,
+		CAR_FASTEST
+	}
 
 	final Graph graph;
 	final int[] refArray;
 	final int[] successor;
 	final boolean[] visited;
+	public final TravelType travelType;
+	int visitedCount = 0;
 	final IntHeapIndirectPriorityQueue queue;
 
 	private void resetData() {
 		Arrays.fill(refArray, 0);
 		Arrays.fill(visited, false);
+		visitedCount = 0;
 		queue.clear();
 	}
 
 	int latestSource = 0;
 
-	public Dijkstra(Graph graph) {
+	public Dijkstra(Graph graph, TravelType travelType) {
+		this.travelType = travelType;	
 		this.graph = graph;
 		refArray = new int[graph.getNodeCount()];
 		successor = new int[graph.getNodeCount()];
 		visited = new boolean[graph.getNodeCount()];
-		queue = new IntHeapIndirectPriorityQueue(refArray);
+		queue = new IntHeapIndirectPriorityQueue(refArray,graph.getNodeCount());
 	}
 
 	public static IntComparator getDijkstraComparator(Int2IntMap distanceToStart) {
@@ -216,6 +226,7 @@ public class Dijkstra {
 				graph.latOf(fromNode), graph.lonOf(fromNode)) * 1.2f;
 
 		queue.enqueue(fromNode);
+		boolean targetFound = false;
 
 		while (!queue.isEmpty()) {
 			// if(queue.size() % 1000 == 0) {
@@ -225,6 +236,7 @@ public class Dijkstra {
 			int next = queue.dequeue();
 
 			if (next == toNode) {
+				targetFound = true;
 				break;
 			}
 
@@ -315,8 +327,13 @@ public class Dijkstra {
 
 					});
 		}
+		
 
 		IntList path = new IntArrayList();
+		// no way possible.
+		if(!targetFound) {
+			return path; 
+		}
 
 		int current = toNode;
 		path.add(toNode);
@@ -328,7 +345,6 @@ public class Dijkstra {
 			path.add(current);
 		}
 		path.add(fromNode);
-		// TODO reverse
 		return path;
 	}
 
