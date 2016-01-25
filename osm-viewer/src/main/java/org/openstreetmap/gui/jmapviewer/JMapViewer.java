@@ -9,6 +9,7 @@ import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -103,8 +104,9 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * or use mouse wheel for zooming. Loaded tiles are stored in a
      * {@link MemoryTileCache} and the tile loader uses 4 parallel threads for
      * retrieving the tiles.
+     * @throws IOException 
      */
-    public JMapViewer(String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+    public JMapViewer(String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) throws IOException {
         this(new MemoryTileCache(), cacheFolder, doCaching,ped,carS,carF);
         //new DefaultMapController(this);
         new OsmRoutingMapController(this,ped,carS,carF);

@@ -10,8 +10,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.File;
-import java.io.FilenameFilter;
+import java.io.IOException;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -21,13 +20,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 
-import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.JMapViewerTree;
 import org.openstreetmap.gui.jmapviewer.OsmTileLoader;
 import org.openstreetmap.gui.jmapviewer.events.JMVCommandEvent;
 import org.openstreetmap.gui.jmapviewer.interfaces.JMapViewerEventListener;
-import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.BingAerialTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOpenAerialTileSource;
@@ -53,8 +50,9 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
     /**
      * Constructs the {@code Demo}.
+     * @throws IOException 
      */
-    public OsmRoutingMain() {
+    public OsmRoutingMain() throws IOException {
         super("JMapViewer Demo");
         setSize(400, 400);
         
@@ -116,9 +114,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         });
         panelTop.add(tileSourceSelector);
 
-//        String[] files = new File(System.getProperty("user.dir")).list((dir,name) -> name.endsWith("osm.pbf"));
-//        JComboBox<String> osmFileSelector = new JComboBox<String>(files);
-//        panelTop.add(osmFileSelector);
+
         
         map().setTileLoader(new OsmTileLoader(map(), cacheFolder, doCaching));
         map().setMapMarkerVisible(true);
@@ -177,8 +173,9 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
     /**
      * @param args Main program arguments
+     * @throws IOException 
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         new OsmRoutingMain().setVisible(true);
     }
 

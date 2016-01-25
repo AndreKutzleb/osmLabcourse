@@ -3,10 +3,8 @@ package de.jgrunert.osm_routing;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Point;
-import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
@@ -14,8 +12,10 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.beans.PropertyChangeListener;
 import java.io.DataInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -23,11 +23,12 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 
+import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JProgressBar;
-import javax.swing.SwingWorker.StateValue;
+import javax.swing.filechooser.FileFilter;
 
 import net.sf.geographiclib.Geodesic;
 import net.sf.geographiclib.GeodesicData;
@@ -43,6 +44,7 @@ import osm.map.Dijkstra;
 import osm.map.Dijkstra.TravelType;
 import osm.map.Graph;
 import osm.map.GraphClickFinder;
+import osmlab.OSMFileConverter;
 import osmlab.sink.GeoUtils.FloatPoint;
 import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 
@@ -101,20 +103,49 @@ public class OsmRoutingMapController extends JMapController implements
 	private JProgressBar carF;
 
 	public OsmRoutingMapController(JMapViewer map, JProgressBar ped,
-			JProgressBar carS, JProgressBar carF) {
+			JProgressBar carS, JProgressBar carF) throws IOException {
 		super(map);
 		this.ped = ped;
 		this.carS = carS;
 		this.carF = carF;
 
 		Graph graph = null;
-		try {
-			// graph = Graph.createGraph("saarland-latest.osm.pbf");
-			graph = Graph.createGraph("germany-latest.osm.pbf");
 
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+		File dataFolder = new File("data");
+		dataFolder.mkdirs();
+
+		String[] folders = dataFolder.list((dir, name) -> new File(name).isDirectory());
+		
+		if (folders.length == 0) {
+			final JFileChooser fc = new JFileChooser();
+			fc.setFileFilter(new FileFilter() {
+
+				@Override
+				public String getDescription() {
+					return "osm.pbf files";
+				}
+
+				@Override
+				public boolean accept(File f) {
+					return f.getAbsolutePath().endsWith(".osm.pbf");
+				}
+			});
+			fc.setDialogTitle("Choose osm file");
+
+			int returnVal = fc.showOpenDialog(null);
+
+			if (returnVal == JFileChooser.APPROVE_OPTION) {
+				OSMFileConverter
+						.process(fc.getSelectedFile().getAbsoluteFile());
+			} else {
+				System.exit(0);
+			}
 		}
+		
+		folders = dataFolder.list((dir, name) -> new File(name).isDirectory());
+		
+		graph = Graph.createGraph(folders[0] +".osm.pbf");
+
 		this.graph = graph;
 		this.dijkstraPedestrian = new Dijkstra(graph, TravelType.PEDESTRIAN);
 		this.dijkstraCarShortest = new Dijkstra(graph, TravelType.CAR_SHORTEST);
@@ -415,8 +446,8 @@ public class OsmRoutingMapController extends JMapController implements
 			}
 
 			if (stopDot != null && !cancel) {
-				// in case there is already a destination, 
-				//instantly show the path
+				// in case there is already a destination,
+				// instantly show the path
 				onRightClick(stopDotNode);
 			}
 

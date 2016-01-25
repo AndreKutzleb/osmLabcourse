@@ -7,6 +7,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 import java.util.List;
 
 import javax.swing.JLabel;
@@ -35,11 +36,11 @@ public class JMapViewerTree extends JPanel{
     private JPanel treePanel;
     private JSplitPane splitPane;
 
-    public JMapViewerTree(String name, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+    public JMapViewerTree(String name, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) throws IOException {
         this(name, false, cacheFolder, doCaching,ped,carS,carF);
     }
 
-    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) throws IOException {
         super();
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
