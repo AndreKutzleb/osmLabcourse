@@ -9,7 +9,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
-import java.util.function.BiConsumer;
 
 import org.openstreetmap.osmosis.core.domain.v0_6.Way;
 
@@ -56,7 +55,8 @@ public class CreateOffsetArray extends DataProcessor{
 				private final int expectedHighways = (int) (CreateOffsetArray.this.sourceFileSize * FormatConstants.highwaysPerByte);
 
 				@Override
-				public void handleHighway(Way way) {
+				public void handleHighway(Way way, HighwayInfos info) {
+					
 					highways++;
 					// remember one link for each direction
 					for(int i = 1; i < way.getWayNodes().size(); i++) {
@@ -68,7 +68,9 @@ public class CreateOffsetArray extends DataProcessor{
 						int indexOfSecondNode = Arrays.binarySearch(allNodes, secondNode);
 						
 						outgoingEdgesOfNode[indexOfFirstNode]++;
-						outgoingEdgesOfNode[indexOfSecondNode]++;
+						if(!info.Oneway) {
+							outgoingEdgesOfNode[indexOfSecondNode]++;							
+						}
 					}		
 					
 					if(highways % (expectedHighways / 100) == 0) {

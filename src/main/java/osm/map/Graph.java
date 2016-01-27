@@ -93,10 +93,19 @@ public class Graph {
 	 * @param toLon
 	 *            and this lon
 	 * 
-	 * @return distance in meters.
+	 * @return distance in millimeters.
 	 */
 	public float distance(int node, float toLat, float toLon) {
+		return distanceFast(node, toLat, toLon) * 10;
+	}
+	
+	float distance(int nodeA, int nodeB) {
+		return distance(nodeA, latOf(nodeB), lonOf(nodeB));
+	}
+	
+	public float distancePrecise (int node, float toLat, float toLon) {
 		float latOfNode = latOf(node);
+	
 		float lonOfNode = lonOf(node);
 
 		float distance = GeoUtils.distFrom(latOfNode, lonOfNode, toLat, toLon);
@@ -104,7 +113,7 @@ public class Graph {
 		return distance;
 	}
 
-	public float distanceFast(int node, float lat, float lon) {
+	private float distanceFast(int node, float lat, float lon) {
 		float latOfNode = latOf(node);
 		float lonOfNode = lonOf(node);
 
@@ -114,12 +123,26 @@ public class Graph {
 		return dist;
 	}
 	
-	private final Random rand = new Random();
-	public int distanceFastInt(int nodeA, int nodeB) {
-		// FIXME RANDOM
-		float distanceFloat = distanceFast(nodeA, latOf(nodeB), lonOf(nodeB));
-		return Math.max(1,Math.round(distanceFloat*100)) + rand.nextInt(1000);
+
+	
+	public int edgeMetaData(int from, int to) {
+		int offset = offsets[from] + 2; // skip lat and lon
+		int upperLimit;
+		if (from + 1 == getNodeCount()) {
+			upperLimit = getNodeCount();
+		} else {
+			upperLimit = offsets[from + 1];
+		}
+		for (int i = offset; i < upperLimit; i++) {
+			int neigbour = ByteUtils.decodeNeighbour(data[i]);
+			if(neigbour == to) {
+				return data[i];
+			}
+		}
+		
+		throw new IllegalStateException("to node no neighbour of from node");
 	}
+
 	
 	public FloatPoint pointAtPercent(int fromNode, int toNode, float percent) {
 		
@@ -249,5 +272,6 @@ public class Graph {
 		}
 		return ByteUtils.decodeNeighbour(data[offset]);
 	}
+
 
 }

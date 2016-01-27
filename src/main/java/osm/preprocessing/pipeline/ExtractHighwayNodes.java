@@ -21,16 +21,20 @@ import osmlab.sink.OsmUtils.TriConsumer;
 
 public class ExtractHighwayNodes extends DataProcessor {
 
-	public ExtractHighwayNodes(PipelinePaths paths, TriConsumer<String, Integer, Integer> progressHandler) {
-		super(paths,progressHandler);
+	public ExtractHighwayNodes(PipelinePaths paths,
+			TriConsumer<String, Integer, Integer> progressHandler) {
+		super(paths, progressHandler);
 	}
 
 	@Override
 	public void process() throws IOException {
 
-		try (OutputStream os = new BufferedOutputStream(new FileOutputStream(paths.HIGHWAY_NODES_RAW));
-				OutputStream osMeta = new BufferedOutputStream(new FileOutputStream(paths.HIGHWAY_NODES_RAW_SIZE));
-				InputStream is = new BufferedInputStream(new FileInputStream(paths.SOURCE_FILE));) {
+		try (OutputStream os = new BufferedOutputStream(new FileOutputStream(
+				paths.HIGHWAY_NODES_RAW));
+				OutputStream osMeta = new BufferedOutputStream(
+						new FileOutputStream(paths.HIGHWAY_NODES_RAW_SIZE));
+				InputStream is = new BufferedInputStream(new FileInputStream(
+						paths.SOURCE_FILE));) {
 
 			HighwaySink sink = new HighwaySink(os, osMeta);
 			OsmUtils.readFromOsm(is, sink);
@@ -51,13 +55,14 @@ public class ExtractHighwayNodes extends DataProcessor {
 		}
 
 		@Override
-		public void handleHighway(Way way) {
+		public void handleHighway(Way way, HighwayInfos infos) {
 			highways++;
-			// 200 updates at most
-			if(highways % (expectedHighways / 100) == 0) {
-				progressHandler.accept("Extracting Node IDs from Source file", highways, expectedHighways);				
+			// 100 updates at most
+			if (highways % (expectedHighways / 100) == 0) {
+				progressHandler.accept("Extracting Node IDs from Source file",
+						highways, expectedHighways);
 			}
-			
+
 			for (WayNode n : way.getWayNodes()) {
 				try {
 					os.writeLong(n.getNodeId());

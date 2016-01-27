@@ -1,6 +1,8 @@
 // License: GPL. For details, see Readme.txt file.
 package de.jgrunert.osm_routing;
 
+import it.unimi.dsi.fastutil.bytes.ByteArrayList;
+import it.unimi.dsi.fastutil.bytes.ByteList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.awt.Color;
@@ -14,7 +16,7 @@ import java.beans.PropertyChangeListener;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,7 +27,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
 
-import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JProgressBar;
 import javax.swing.filechooser.FileFilter;
@@ -44,7 +45,9 @@ import osm.map.Dijkstra;
 import osm.map.Dijkstra.TravelType;
 import osm.map.Graph;
 import osm.map.GraphClickFinder;
+import osm.map.Route;
 import osmlab.OSMFileConverter;
+import osmlab.sink.ByteUtils;
 import osmlab.sink.GeoUtils.FloatPoint;
 import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 
@@ -114,7 +117,9 @@ public class OsmRoutingMapController extends JMapController implements
 		File dataFolder = new File("data");
 		dataFolder.mkdirs();
 
-		String[] folders = dataFolder.list((dir, name) -> new File(name).isDirectory());
+		FilenameFilter folderFilter = (dir, name) -> new File(name).isDirectory() && !new File(name).getName().startsWith("_");
+		
+		String[] folders = dataFolder.list(folderFilter);
 		
 		if (folders.length == 0) {
 			final JFileChooser fc = new JFileChooser();
@@ -127,7 +132,7 @@ public class OsmRoutingMapController extends JMapController implements
 
 				@Override
 				public boolean accept(File f) {
-					return f.getAbsolutePath().endsWith(".osm.pbf");
+					return f.getAbsolutePath().endsWith(".osm.pbf") || f.isDirectory();
 				}
 			});
 			fc.setDialogTitle("Choose osm file");
@@ -142,7 +147,7 @@ public class OsmRoutingMapController extends JMapController implements
 			}
 		}
 		
-		folders = dataFolder.list((dir, name) -> new File(name).isDirectory());
+		folders = dataFolder.list(folderFilter);
 		
 		graph = Graph.createGraph(folders[0] +".osm.pbf");
 
@@ -286,24 +291,6 @@ public class OsmRoutingMapController extends JMapController implements
 			int clickNextPt = new GraphClickFinder(graph).findClosestNodeTo(
 					(float) clickPt.getLat(), (float) clickPt.getLon());
 
-			// graph.forEachNeighbourOf(clickNextPt, neighbour -> {
-			// Coordinate c = new
-			// Coordinate(graph.latOf(neighbour),graph.lonOf(neighbour));
-			// MapMarkerDot cl = new MapMarkerDot("Neighbour"+neighbour, c);
-			// map.addMapMarker(cl);
-			//
-			//
-			// },3);
-
-			// graph.forEachEdgeOf(clickNextPt, (from,to) -> {
-			// Coordinate a = new Coordinate(graph.latOf(from),
-			// graph.lonOf(from));
-			// Coordinate b = new Coordinate(graph.latOf(to), graph.lonOf(to));
-			//
-			// MapPolygonImpl poly = new MapPolygonImpl(a,b,b);
-			// map.addMapPolygon(poly);
-			// },10);
-
 			boolean leftMouse = e.getButton() == MouseEvent.BUTTON1;
 
 			if (leftMouse) {
@@ -328,60 +315,10 @@ public class OsmRoutingMapController extends JMapController implements
 			}
 			if (true) {
 				return;
-			}
-			if (startDot != null && stopDot != null) {
-				System.out.println("starting do dijkstra yo");
-				IntList findPathDijkstra;
-				long before = System.currentTimeMillis();
-				// findPathDijkstra = dijkstra.findPathDijkstra(startNode,
-				// stopNode);
-				long middle = System.currentTimeMillis();
-				findPathDijkstra = null;// dijkstra.findPathDijkstraFast(startNode,
-										// stopNode);
-				long after = System.currentTimeMillis();
-
-				System.out.println("normal: " + (middle - before) + "ms");
-				System.out.println("fast:" + (after - middle) + "ms");
-				map.removeAllMapPolygons();
-				for (int i = 1; i < findPathDijkstra.size(); i++) {
-
-					int from = findPathDijkstra.getInt(i - 1);
-					int to = findPathDijkstra.getInt(i);
-
-					Coordinate a = new Coordinate(graph.latOf(from),
-							graph.lonOf(from));
-					Coordinate b = new Coordinate(graph.latOf(to),
-							graph.lonOf(to));
-
-					MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
-					map.addMapPolygon(routPoly);
-				}
-			}
-			//
-			// Coordinate clickNextPtCoord = new
-			// Coordinate(nodesLat[clickNextPt], nodesLon[clickNextPt]);
-			//
-			// if(e.getButton() == MouseEvent.BUTTON1) {
-			// startIndex = clickNextPt;
-			// startLoc = clickNextPtCoord;
-			// }
-			// else if(e.getButton() == MouseEvent.BUTTON3) {
-			// targetIndex = clickNextPt;
-			// targetLoc = clickNextPtCoord;
-			// }
-			//
-			// updateRoute();
-		} else if (doubleClickZoomEnabled && e.getClickCount() == 2
-				&& e.getButton() == MouseEvent.BUTTON1) {
-			// Zoom on doubleclick
-			map.zoomIn(e.getPoint());
+			}	
 		}
 	}
-
-	// 1 needed to set new target, 2 needed to move destination.
-	// after first successful run of dijkstra from a start Node and
-	// from then on out, semaphore has 2 permits
-
+	
 	private final Semaphore dijkstraMutex = new Semaphore(3);
 	boolean canRoute = false;
 
@@ -494,22 +431,27 @@ public class OsmRoutingMapController extends JMapController implements
 			dijkstraMutex.release(3);
 			return false;
 		}
-		IntList pedestrianPath = dijkstraPedestrian.getPath(destinationNode);
-		IntList carShortestPath = dijkstraCarShortest.getPath(destinationNode);
-		IntList carFastestPath = dijkstraCarFastest.getPath(destinationNode);
+		Route pedestrianPath = dijkstraPedestrian.getPath(destinationNode);
+		Route carShortestPath = dijkstraCarShortest.getPath(destinationNode);
+		Route carFastestPath = dijkstraCarFastest.getPath(destinationNode);
 
 		map.removeAllMapPolygons();
 
-		drawPath(pedestrianPath, Color.GREEN);
-		drawPath(carShortestPath, Color.RED);
-		drawPath(carFastestPath, Color.BLUE);
+		drawPath(pedestrianPath, Color.GREEN,"Pedestrian",2);
+		drawPath(carShortestPath, Color.RED,"Car Shortest",3);
+		drawPath(carFastestPath, Color.BLUE,"Car Fastest",4);
 
 		dijkstraMutex.release(3);
 		return true;
 
 	}
 
-	private void drawPath(IntList path, Color color) {
+
+
+	private void drawPath(Route route, Color color, String name, int part) {
+		
+		IntList path = route.path;
+
 		for (int i = 1; i < path.size(); i++) {
 
 			int from = path.getInt(i - 1);
@@ -520,7 +462,17 @@ public class OsmRoutingMapController extends JMapController implements
 
 			MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
 			routPoly.setColor(color);
+		
+			if(i % 10 == 0) {
+				routPoly.setName(""+route.edgeSpeeds.getByte(i-1));
+			}
+
+			if(i == path.size() / part) {
+				routPoly.setName(name);
+			}
+			
 			map.addMapPolygon(routPoly);
+
 		}
 	}
 

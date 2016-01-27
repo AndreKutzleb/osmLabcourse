@@ -46,6 +46,15 @@ public class ByteUtils {
 	public static int decodeNeighbour(int edge) {
 		return edge >>> 5;
 	}
+
+	public static byte decodeSpeed(int edgeMetaData) {
+		return (byte) (edgeMetaData & 0xf);
+	}
+
+	public static boolean decodePedestrian(int edgeMetaData) {
+		return ((edgeMetaData >> 4) & 1) == 1;
+	}
+	
 	
 	
 }

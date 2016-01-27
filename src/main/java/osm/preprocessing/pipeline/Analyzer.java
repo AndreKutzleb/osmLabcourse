@@ -53,7 +53,7 @@ public class Analyzer extends DataProcessor{
 				}
 				
 				@Override
-				public void handleHighway(Way way) {
+				public void handleHighway(Way way,HighwayInfos infos) {
 					highways++;
 					for(WayNode w : way.getWayNodes()) {
 						highwayNodes.add(w.getNodeId());
@@ -63,6 +63,7 @@ public class Analyzer extends DataProcessor{
 				@Override
 				public void handleNode(Node node) {
 					nodes++;
+					
 					if((ways+nodes) % (expectedWaysAndNodes/100) == 0) {
 						progressHandler.accept("Analyzing size and contents of OSM file", (int) (ways+nodes), expectedWaysAndNodes);
 					}

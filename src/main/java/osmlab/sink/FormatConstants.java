@@ -14,10 +14,10 @@ public class FormatConstants {
 	
 	// based on germany analysis, this helps estimating the progress for the steps
 	public static final long saarlandSize = 2772728596L;
-	public static final float waysPerByte = 36728829 / saarlandSize;
-	public static final float highwaysPerByte = 9081688 / saarlandSize; 
-	public static final float nodesPerByte = 230496796 / saarlandSize; 
-	public static final float highwayNodesPerByte = 51727980 / saarlandSize; 
+	public static final float waysPerByte = 36728829f / saarlandSize;
+	public static final float highwaysPerByte = 9081688f / saarlandSize; 
+	public static final float nodesPerByte = 230496796f / saarlandSize; 
+	public static final float highwayNodesPerByte = 51727980f / saarlandSize; 
 	
 
 }
