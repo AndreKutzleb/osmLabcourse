@@ -1,9 +1,7 @@
 package osm.map;
 
-import java.awt.geom.Line2D;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.util.Random;
 import java.util.function.IntConsumer;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -96,14 +94,14 @@ public class Graph {
 	 * @return distance in millimeters.
 	 */
 	public float distance(int node, float toLat, float toLon) {
-		return distanceFast(node, toLat, toLon) * 10;
+		return distanceFast(node, toLat, toLon);
 	}
 	
-	float distance(int nodeA, int nodeB) {
+	public float distance(int nodeA, int nodeB) {
 		return distance(nodeA, latOf(nodeB), lonOf(nodeB));
 	}
 	
-	public float distancePrecise (int node, float toLat, float toLon) {
+	private float distancePrecise (int node, float toLat, float toLon) {
 		float latOfNode = latOf(node);
 	
 		float lonOfNode = lonOf(node);

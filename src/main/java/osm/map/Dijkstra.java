@@ -204,38 +204,43 @@ public class Dijkstra {
 
 	}
 
-	int A_LARGE_NUMBER = Integer.MAX_VALUE / 2;
+	int A_LARGE_NUMBER = 100000;
 
 	private int determineDistance(int distanceToVisited, int from, int to) {
 
-		
+//		if(true) {
+//			return distanceToVisited + 1;
+//		}
+//		
 		int edgeMetaData = graph.edgeMetaData(from, to);
 		byte speed = ByteUtils.decodeSpeed(edgeMetaData);
 		boolean pedestrian = ByteUtils.decodePedestrian(edgeMetaData);
+		
+		float distanceFloat = graph.distance(from, to);
+
+		int distance = (int) Math.max(1,distanceFloat);
 
 		
 		switch (travelType) {
 			case PEDESTRIAN : {
 				if (pedestrian) {
-					int distance = (int) graph.distance(from, to);
 					return distance + distanceToVisited;
 				} else {
-					return A_LARGE_NUMBER;
+					return distance + A_LARGE_NUMBER;
 				}
 			}
 
 			case CAR_SHORTEST : {
-				if (pedestrian || speed == 0) {
-					return A_LARGE_NUMBER;
+				if (speed == 0) {
+					return distance + A_LARGE_NUMBER;
 				} else {
 
-					int distance = (int) graph.distance(from, to);
 					return distance + distanceToVisited;
 				}
 			}
 			case CAR_FASTEST : {
 				if (speed == 0) {
-					return A_LARGE_NUMBER;
+					return distance + A_LARGE_NUMBER;
 				} else {
 					
 					// for car fastest, we do not use millimeters as metric, but
@@ -243,18 +248,16 @@ public class Dijkstra {
 
 
 
-					float distance = graph.distance(from, to);
 					float kmh = AbstractHighwaySink.speedBitsToKmh(speed);
 			
 					float secondsPerMeter = 3.6f / kmh;
-					float distanceMeters = distance / 1000f;
+					float distanceMeters = distanceFloat / 1000f;
 					
 				
 					int timeTakenInSeconds = Math.round(distanceMeters / secondsPerMeter);
 
 					
-					// WTF TODO DESPERATION
-					timeTakenInSeconds = (int) ((1 / (float) timeTakenInSeconds) * 10000);
+					timeTakenInSeconds = Math.max(1,timeTakenInSeconds);
 //					System.out.println(distance);
 //					System.out.println(distanceMeters + "/" + secondsPerMeter + " = " + timeTakenInSeconds);
 //					try {

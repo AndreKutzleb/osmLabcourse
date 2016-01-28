@@ -14,7 +14,7 @@ import osm.map.Dijkstra.TravelType;
 
 public class GraphClickFinder {
 	
-	private static final int numberOfRandomStartNodes = 50000;
+	private static final int numberOfRandomStartNodes = 500000;
 	private static final int CANNOT_LOOK_FOR_NODE_LIMIT = 100 * 1000;
 
 	private final Graph graph;
@@ -24,14 +24,34 @@ public class GraphClickFinder {
 		this.graph = graph;
 	}
 
-	public int findClosestNodeTo(float toLat, float toLon) {
+	public int findClosestNodeTo(float toLat, float toLon, boolean deterministic) {
+		if(deterministic) {
+			return findDeterministic(toLat, toLon);
+		} else {
+			
 		int closestStartNode = findClosestStartNode(toLat,toLon);
 		if(graph.distance(closestStartNode, toLat, toLon) > CANNOT_LOOK_FOR_NODE_LIMIT) {
+			System.err.println("Returning closestStartNode");
 			return closestStartNode;
 		}
 		return findClosestNodeDijkstra(closestStartNode, toLat, toLon);
+		}
 	}
 	
+	private int findDeterministic(float toLat, float toLon) {
+		int closest = 0;
+		float closestDistance = graph.distance(0, toLat, toLon);
+		
+		for(int node = 1; node <  graph.getNodeCount(); node++) {
+			float distance = graph.distance(node, toLat, toLon);
+			if(distance < closestDistance) {
+				closest = node;
+				closestDistance = distance;
+			}
+		}
+		return closest;
+	}
+
 	public static IntComparator getDijkstraComparator(Int2IntMap distanceToStart) {
 		IntComparator dijkstraComparator = new IntComparator() {
 

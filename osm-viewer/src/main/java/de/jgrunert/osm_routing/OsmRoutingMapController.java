@@ -1,8 +1,6 @@
 // License: GPL. For details, see Readme.txt file.
 package de.jgrunert.osm_routing;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-import it.unimi.dsi.fastutil.bytes.ByteList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.awt.Color;
@@ -13,26 +11,14 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.beans.PropertyChangeListener;
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
-import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.Semaphore;
 
 import javax.swing.JFileChooser;
 import javax.swing.JProgressBar;
 import javax.swing.filechooser.FileFilter;
-
-import net.sf.geographiclib.Geodesic;
-import net.sf.geographiclib.GeodesicData;
 
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapController;
@@ -47,7 +33,6 @@ import osm.map.Graph;
 import osm.map.GraphClickFinder;
 import osm.map.Route;
 import osmlab.OSMFileConverter;
-import osmlab.sink.ByteUtils;
 import osmlab.sink.GeoUtils.FloatPoint;
 import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 
@@ -79,24 +64,7 @@ public class OsmRoutingMapController extends JMapController implements
 	private boolean wheelZoomEnabled = true;
 	private boolean doubleClickZoomEnabled = true;
 
-	private int startIndex;
-	private Coordinate startLoc = null;
-	private int targetIndex;
-	private Coordinate targetLoc = null;
-
-	private List<MapMarkerDot> routeDots = new ArrayList<>();
-	private List<MapPolygonImpl> routeLines = new ArrayList<>();
-
-	int nodeCount = 0;
-	double[] nodesLat = null;
-	double[] nodesLon = null;
-	int[] nodesEdgeOffset = null;
-
-	int[] nodesPreBuffer = null;
-
-	int edgeCount = 0;
-	int[] edgesTarget = null;
-
+	
 	private final Graph graph;
 	private final Dijkstra dijkstraPedestrian;
 	private final Dijkstra dijkstraCarShortest;
@@ -155,107 +123,6 @@ public class OsmRoutingMapController extends JMapController implements
 		this.dijkstraPedestrian = new Dijkstra(graph, TravelType.PEDESTRIAN);
 		this.dijkstraCarShortest = new Dijkstra(graph, TravelType.CAR_SHORTEST);
 		this.dijkstraCarFastest = new Dijkstra(graph, TravelType.CAR_FASTEST);
-
-		//
-		// try {
-		// loadOsmData();
-		// } catch (Exception e) {
-		// System.err.println("Error at loadOsmData");
-		// e.printStackTrace();
-		// }
-	}
-
-	@SuppressWarnings("resource")
-	private void loadOsmData() throws Exception {
-
-		System.out.println("Start reading nodes");
-		DataInputStream nodeReader = new DataInputStream(new FileInputStream(
-				"D:\\Jonas\\OSM\\hamburg\\pass3-nodes.bin"));
-
-		nodeCount = nodeReader.readInt();
-		nodesLat = new double[nodeCount];
-		nodesLon = new double[nodeCount];
-		nodesEdgeOffset = new int[nodeCount];
-		nodesPreBuffer = new int[nodeCount];
-
-		for (int i = 0; i < nodeCount; i++) {
-			nodesLat[i] = nodeReader.readDouble();
-			nodesLon[i] = nodeReader.readDouble();
-			nodesEdgeOffset[i] = nodeReader.readInt();
-		}
-
-		nodeReader.close();
-		System.out.println("Finished reading nodes");
-
-		System.out.println("Start reading edges");
-		DataInputStream edgeReader = new DataInputStream(new FileInputStream(
-				"D:\\Jonas\\OSM\\hamburg\\pass3-edges.bin"));
-		edgeCount = edgeReader.readInt();
-		edgesTarget = new int[edgeCount];
-
-		for (int i = 0; i < edgeCount; i++) {
-			edgesTarget[i] = edgeReader.readInt();
-			if (edgesTarget[i] == 0) {
-				System.out.println(i);
-			}
-		}
-
-		edgeReader.close();
-		System.out.println("Finished reading edges");
-
-		// for(int i = 4; i < 5; i++) {
-		// double lat = nodesLat[i];
-		// double lon = nodesLon[i];
-		// Coordinate coord = new Coordinate(lat, lon);
-		// int edgeOffs = nodesEdgeOffset[i];
-		// MapMarkerDot targetDot = new MapMarkerDot("Start", coord);
-		// map.addMapMarker(targetDot);
-		// Set<Integer> visited = new HashSet<>();
-		// visited.add(i);
-		//
-		// for(int iTarg = edgeOffs; iTarg < nodesEdgeOffset[i+1]; iTarg++) {
-		// mapPointDfs(edgesTarget[iTarg],coord, 1, 300, visited);
-		// }
-		// }
-	}
-
-	private void mapPointDfs(int i, Coordinate lastCoord, int depth,
-			int maxDepth, Set<Integer> visited) {
-		if (depth < maxDepth) {
-			double lat = nodesLat[i];
-			double lon = nodesLon[i];
-			Coordinate coord = new Coordinate(lat, lon);
-			int edgeOffs = nodesEdgeOffset[i];
-
-			if (depth == maxDepth - 1) {
-				// MapMarkerDot targetDot = new MapMarkerDot("End", coord);
-				// map.addMapMarker(targetDot);
-			}
-
-			MapPolygonImpl routPoly = new MapPolygonImpl(lastCoord, coord,
-					coord);
-			routeLines.add(routPoly);
-			map.addMapPolygon(routPoly);
-			visited.add(i);
-
-			boolean hasWay = false;
-			for (int iTarg = edgeOffs; iTarg < nodesEdgeOffset[i + 1]; iTarg++) {
-				int targ = edgesTarget[iTarg];
-				if (!visited.contains(targ)) {
-					hasWay = true;
-					mapPointDfs(edgesTarget[iTarg], coord, depth + 1, maxDepth,
-							visited);
-					// break;
-				} else {
-					System.out.println("Already visited");
-				}
-			}
-
-			if (!hasWay) {
-				// MapMarkerDot targetDot = new MapMarkerDot("Sack", coord);
-				// map.addMapMarker(targetDot);
-			}
-		}
 	}
 
 	@Override
@@ -289,8 +156,25 @@ public class OsmRoutingMapController extends JMapController implements
 			ICoordinate clickPt = map.getPosition(e.getPoint());
 
 			int clickNextPt = new GraphClickFinder(graph).findClosestNodeTo(
-					(float) clickPt.getLat(), (float) clickPt.getLon());
+					(float) clickPt.getLat(), (float) clickPt.getLon(),true);
 
+//			int clickNextDeterministic = new GraphClickFinder(graph).findClosestNodeTo(
+//					(float) clickPt.getLat(), (float) clickPt.getLon(),true);
+//			
+//			if(clickNextPt != clickNextDeterministic) {
+//				System.err.println("Nondeterministic approach found " + clickNextPt + " with distance " + graph.distance(clickNextPt, (float)clickPt.getLat(), (float)clickPt.getLon()) );
+//				System.err.println("deterministic    approach found " + clickNextDeterministic + " with distance " + graph.distance(clickNextDeterministic, (float)clickPt.getLat(), (float)clickPt.getLon()) );
+//				MapMarkerDot deter = new MapMarkerDot("deterministic", new Coordinate(
+//						graph.latOf(clickNextDeterministic), graph.lonOf(clickNextDeterministic)));
+//				map.addMapMarker(deter);
+//				MapMarkerDot nondeter = new MapMarkerDot("nondeterministic", new Coordinate(
+//						graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
+//				map.addMapMarker(nondeter);
+//		
+//				return;
+//			}
+
+			
 			boolean leftMouse = e.getButton() == MouseEvent.BUTTON1;
 
 			if (leftMouse) {
@@ -473,122 +357,6 @@ public class OsmRoutingMapController extends JMapController implements
 			
 			map.addMapPolygon(routPoly);
 
-		}
-	}
-
-	/**
-	 * Tries to find out index of next point to given coordinate
-	 * 
-	 * @param coord
-	 * @return Index of next point
-	 */
-	private int findNextPoint(Coordinate coord) {
-		int nextIndex = -1;
-		double smallestDist = Double.MAX_VALUE;
-		for (int i = 0; i < nodeCount; i++) {
-			GeodesicData g = Geodesic.WGS84.Inverse(coord.getLat(),
-					coord.getLon(), nodesLat[i], nodesLon[i]);
-			if (g.s12 < smallestDist) {
-				smallestDist = g.s12;
-				nextIndex = i;
-			}
-		}
-		return nextIndex;
-	}
-
-	private void updateRoute() {
-		// Remove old dots and lines
-		for (MapMarkerDot dot : routeDots) {
-			map.removeMapMarker(dot);
-		}
-		routeDots.clear();
-		for (MapPolygonImpl line : routeLines) {
-			map.removeMapPolygon(line);
-		}
-		routeLines.clear();
-
-		// Add route points to map
-		if (startLoc != null) {
-			MapMarkerDot startDot = new MapMarkerDot("Start", startLoc);
-			map.addMapMarker(startDot);
-			routeDots.add(startDot);
-		}
-		if (targetLoc != null) {
-			MapMarkerDot targetDot = new MapMarkerDot("Target", targetLoc);
-			map.addMapMarker(targetDot);
-			routeDots.add(targetDot);
-		}
-
-		// if(startLoc != null && targetLoc != null) {
-		// MapPolygonImpl routPoly = new MapPolygonImpl("Route", startLoc,
-		// targetLoc, targetLoc);
-		// routeLines.add(routPoly);
-		// map.addMapPolygon(routPoly);
-		// }
-
-		Random rd = new Random(123);
-		double debugDispProp = 10.998;
-
-		if (startLoc != null && targetLoc != null) {
-			// BFS uses Queue data structure
-			Queue<Integer> queue = new LinkedList<>();
-			Set<Integer> visited = new HashSet<>();
-			queue.add(startIndex);
-			while (!queue.isEmpty()) {
-				int nextIndex = queue.remove();
-
-				if (nextIndex == targetIndex) {
-					System.out.println("Found!");
-					break;
-				} else {
-					// System.out.println("Not found");
-				}
-
-				visited.add(nextIndex);
-
-				// Display
-				if (rd.nextDouble() > debugDispProp) {
-					MapMarkerDot targetDot = new MapMarkerDot(new Coordinate(
-							nodesLat[nextIndex], nodesLon[nextIndex]));
-					map.addMapMarker(targetDot);
-					routeDots.add(targetDot);
-				}
-				// System.out.println(nextIndex);
-
-				for (int iTarg = nodesEdgeOffset[nextIndex];
-				// nextIndex+1 < nodesEdgeOffset.length && TODO last node
-				iTarg < nodesEdgeOffset[nextIndex + 1]; iTarg++) {
-					int targ = edgesTarget[iTarg];
-					if (!visited.contains(targ)) {
-						nodesPreBuffer[targ] = nextIndex;
-						queue.add(targ);
-					} else {
-						// System.out.println("Already visited");
-					}
-				}
-			}
-
-			int i = targetIndex;
-			while (i != startIndex) {
-				int pre = nodesPreBuffer[i];
-				// if (pre == targetIndex) {
-				// continue;
-				// }
-
-				Coordinate c1 = new Coordinate(nodesLat[pre], nodesLon[pre]);
-				Coordinate c2 = new Coordinate(nodesLat[i], nodesLon[i]);
-
-				MapPolygonImpl routPoly = new MapPolygonImpl(c1, c2, c2);
-				routeLines.add(routPoly);
-				map.addMapPolygon(routPoly);
-
-				// MapMarkerDot dot = new MapMarkerDot(new
-				// Coordinate(nodesLat[i], nodesLon[i]));
-				// map.addMapMarker(dot);
-				// routeDots.add(dot);
-
-				i = pre;
-			}
 		}
 	}
 
