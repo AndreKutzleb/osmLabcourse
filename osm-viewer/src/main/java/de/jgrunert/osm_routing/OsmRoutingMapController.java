@@ -69,16 +69,28 @@ public class OsmRoutingMapController extends JMapController implements
 	private final Dijkstra dijkstraPedestrian;
 	private final Dijkstra dijkstraCarShortest;
 	private final Dijkstra dijkstraCarFastest;
-	private JProgressBar ped;
-	private JProgressBar carS;
-	private JProgressBar carF;
+	private final Dijkstra dijkstraHopDistance;
 
-	public OsmRoutingMapController(JMapViewer map, JProgressBar ped,
-			JProgressBar carS, JProgressBar carF) throws IOException {
+	private final Progress progress;
+	
+	public static class Progress {
+		public final JProgressBar ped;
+		public final JProgressBar carS; 
+		public final JProgressBar carF;
+		public final JProgressBar hop;
+	
+		public Progress(JProgressBar ped, JProgressBar carS,
+				JProgressBar carF, JProgressBar hop) {
+			this.ped = ped;
+			this.carS = carS;
+			this.carF = carF;
+			this.hop = hop;
+		}	
+	}
+
+	public OsmRoutingMapController(JMapViewer map, Progress progress) throws IOException {
 		super(map);
-		this.ped = ped;
-		this.carS = carS;
-		this.carF = carF;
+		this.progress = progress;
 
 		Graph graph = null;
 
@@ -123,6 +135,8 @@ public class OsmRoutingMapController extends JMapController implements
 		this.dijkstraPedestrian = new Dijkstra(graph, TravelType.PEDESTRIAN);
 		this.dijkstraCarShortest = new Dijkstra(graph, TravelType.CAR_SHORTEST);
 		this.dijkstraCarFastest = new Dijkstra(graph, TravelType.CAR_FASTEST);
+		this.dijkstraHopDistance = new Dijkstra(graph, TravelType.HOP_DISTANCE);
+
 	}
 
 	@Override
@@ -158,21 +172,6 @@ public class OsmRoutingMapController extends JMapController implements
 			int clickNextPt = new GraphClickFinder(graph).findClosestNodeTo(
 					(float) clickPt.getLat(), (float) clickPt.getLon(),true);
 
-//			int clickNextDeterministic = new GraphClickFinder(graph).findClosestNodeTo(
-//					(float) clickPt.getLat(), (float) clickPt.getLon(),true);
-//			
-//			if(clickNextPt != clickNextDeterministic) {
-//				System.err.println("Nondeterministic approach found " + clickNextPt + " with distance " + graph.distance(clickNextPt, (float)clickPt.getLat(), (float)clickPt.getLon()) );
-//				System.err.println("deterministic    approach found " + clickNextDeterministic + " with distance " + graph.distance(clickNextDeterministic, (float)clickPt.getLat(), (float)clickPt.getLon()) );
-//				MapMarkerDot deter = new MapMarkerDot("deterministic", new Coordinate(
-//						graph.latOf(clickNextDeterministic), graph.lonOf(clickNextDeterministic)));
-//				map.addMapMarker(deter);
-//				MapMarkerDot nondeter = new MapMarkerDot("nondeterministic", new Coordinate(
-//						graph.latOf(clickNextPt), graph.lonOf(clickNextPt)));
-//				map.addMapMarker(nondeter);
-//		
-//				return;
-//			}
 
 			
 			boolean leftMouse = e.getButton() == MouseEvent.BUTTON1;
@@ -203,25 +202,27 @@ public class OsmRoutingMapController extends JMapController implements
 		}
 	}
 	
-	private final Semaphore dijkstraMutex = new Semaphore(3);
+	private final Semaphore dijkstraMutex = new Semaphore(4);
 	boolean canRoute = false;
 
 	volatile DijkstraWorker pedestrianRef = null;
 	volatile DijkstraWorker carShortestRef = null;
 	volatile DijkstraWorker carFastestRef = null;
+	volatile DijkstraWorker hopDistanceRef = null;
 
 	private void onLeftClick(int startNode) throws InterruptedException {
 
-		boolean canCalculate = dijkstraMutex.tryAcquire(3);
+		boolean canCalculate = dijkstraMutex.tryAcquire(4);
 
 		if (!canCalculate) {
 			// currently running calculation. stop it.
 			pedestrianRef.cancel(true);
 			carShortestRef.cancel(true);
 			carFastestRef.cancel(true);
+			hopDistanceRef.cancel(true);
 
 			// will wait for the old tasks to stop
-			dijkstraMutex.acquire(3);
+			dijkstraMutex.acquire(4);
 		}
 		canRoute = false;
 
@@ -231,23 +232,29 @@ public class OsmRoutingMapController extends JMapController implements
 				dijkstraCarShortest, startNode, dijkstraMutex);
 		final DijkstraWorker carFastest = new DijkstraWorker(
 				dijkstraCarFastest, startNode, dijkstraMutex);
+		final DijkstraWorker hopDistance = new DijkstraWorker(
+				dijkstraHopDistance, startNode, dijkstraMutex);
 
 		pedestrianRef = pedestrian;
 		carShortestRef = carShortest;
 		carFastestRef = carFastest;
+		hopDistanceRef = hopDistance;
 
-		ped.setVisible(true);
-		carS.setVisible(true);
-		carF.setVisible(true);
-
+		progress.ped.setVisible(true);
+		progress.carS.setVisible(true);
+		progress.carF.setVisible(true);
+		progress.hop.setVisible(true);
+		
 		PropertyChangeListener p = (c) -> {
-			ped.setValue(pedestrian.getProgress());
-			carS.setValue(carShortest.getProgress());
-			carF.setValue(carFastest.getProgress());
+			progress.ped.setValue(pedestrian.getProgress());
+			progress.carS.setValue(carShortest.getProgress());
+			progress.carF.setValue(carFastest.getProgress());
+			progress.hop.setValue(hopDistance.getProgress());
 
-			ped.setString("Pedestrian: " + pedestrian.getProgress() + "%");
-			carS.setString("Car Shortest: " + carShortest.getProgress() + "%");
-			carF.setString("Car Fastest: " + carFastest.getProgress() + "%");
+			progress.ped.setString("Pedestrian: " + pedestrian.getProgress() + "%");
+			progress.carS.setString("Car Shortest: " + carShortest.getProgress() + "%");
+			progress.carF.setString("Car Fastest: " + carFastest.getProgress() + "%");
+			progress.hop.setString("Hop Distance: " + hopDistance.getProgress() + "%");
 
 			float avgPercent = (pedestrian.getProgress()
 					+ carShortest.getProgress() + carFastest.getProgress()) / 300f;
@@ -257,10 +264,10 @@ public class OsmRoutingMapController extends JMapController implements
 			}
 
 			boolean stop = pedestrian.isDone() && carShortest.isDone()
-					&& carFastest.isDone();
+					&& carFastest.isDone() && hopDistance.isDone();
 
 			boolean cancel = pedestrian.isCancelled()
-					|| carShortest.isCancelled() || carFastest.isCancelled();
+					|| carShortest.isCancelled() || carFastest.isCancelled() || hopDistance.isCancelled();
 
 			if (stop) {
 				canRoute = true;
@@ -277,9 +284,12 @@ public class OsmRoutingMapController extends JMapController implements
 		pedestrian.addPropertyChangeListener(p);
 		carShortest.addPropertyChangeListener(p);
 		carFastest.addPropertyChangeListener(p);
+		hopDistance.addPropertyChangeListener(p);
+	
 		pedestrian.execute();
 		carShortest.execute();
 		carFastest.execute();
+		hopDistance.execute();
 
 		map.removeAllMapPolygons();
 
@@ -305,27 +315,29 @@ public class OsmRoutingMapController extends JMapController implements
 
 	private boolean onRightClick(int destinationNode) {
 
-		boolean gotLock = dijkstraMutex.tryAcquire(3);
+		boolean gotLock = dijkstraMutex.tryAcquire(4);
 
 		if (!gotLock) {
 			return false;
 		}
 
 		if (!canRoute) {
-			dijkstraMutex.release(3);
+			dijkstraMutex.release(4);
 			return false;
 		}
 		Route pedestrianPath = dijkstraPedestrian.getPath(destinationNode);
 		Route carShortestPath = dijkstraCarShortest.getPath(destinationNode);
 		Route carFastestPath = dijkstraCarFastest.getPath(destinationNode);
+		Route hopDistancePath = dijkstraHopDistance.getPath(destinationNode);
 
 		map.removeAllMapPolygons();
 
-		drawPath(pedestrianPath, Color.GREEN,"Pedestrian",2);
+		drawPath(pedestrianPath, Color.BLACK,"Pedestrian",2);
 		drawPath(carShortestPath, Color.RED,"Car Shortest",3);
 		drawPath(carFastestPath, Color.BLUE,"Car Fastest",4);
+		drawPath(hopDistancePath, Color.MAGENTA,"Hop Distance",8);
 
-		dijkstraMutex.release(3);
+		dijkstraMutex.release(4);
 		return true;
 
 	}
@@ -347,11 +359,11 @@ public class OsmRoutingMapController extends JMapController implements
 			MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
 			routPoly.setColor(color);
 		
-			if(i % 10 == 0) {
-				routPoly.setName(""+route.edgeSpeeds.getByte(i-1));
-			}
-
+//			if(i % 10 == 0) {
+//				routPoly.setName(""+route.edgeSpeeds.getByte(i-1));
+//			}
 			if(i == path.size() / part) {
+				name+= String.format("%.4f", route.totalDistance());
 				routPoly.setName(name);
 			}
 			

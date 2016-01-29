@@ -7,10 +7,13 @@ import it.unimi.dsi.fastutil.ints.IntHeapPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
+import java.util.Arrays;
 import java.util.Random;
-import java.util.function.IntConsumer;
-
-import osm.map.Dijkstra.TravelType;
+import java.util.Spliterator;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.ObjIntConsumer;
+import java.util.stream.IntStream;
 
 public class GraphClickFinder {
 	
@@ -26,7 +29,22 @@ public class GraphClickFinder {
 
 	public int findClosestNodeTo(float toLat, float toLon, boolean deterministic) {
 		if(deterministic) {
-			return findDeterministic(toLat, toLon);
+//			long before = System.currentTimeMillis();
+//			int found1 = findDeterministic(toLat, toLon);
+//			long middle = System.currentTimeMillis();
+			int found2 = findDeterministicFast(toLat, toLon);
+//			long after = System.currentTimeMillis();
+//			
+//			System.out.print("normal: ");
+//			System.out.println(middle-before);
+//			System.out.print("parallel: ");
+//			System.out.println(after-middle);
+//			
+//			if(found1 != found2) {
+//				throw new IllegalStateException();
+//			}
+			return found2;
+
 		} else {
 			
 		int closestStartNode = findClosestStartNode(toLat,toLon);
@@ -50,6 +68,42 @@ public class GraphClickFinder {
 			}
 		}
 		return closest;
+	}
+	
+	
+	private class Min{
+		int node = 0;
+		float distance = Integer.MAX_VALUE;
+	}
+	
+	private int findDeterministicFast(float toLat, float toLon) {
+		
+		ObjIntConsumer<Min> accumulator = new ObjIntConsumer<Min>() {	
+				
+			@Override
+			public void accept(Min arg0, int arg1) {
+				float dist = graph.distance(arg1,toLat,toLon);
+				if(dist < arg0.distance) {
+					arg0.distance = dist;
+					arg0.node = arg1;
+				}
+			}
+		};
+		
+		BiConsumer<Min, Min> combiner = new BiConsumer<Min, Min>() {
+			
+			@Override
+			public void accept(Min t, Min u) {
+				if(u.distance < t.distance) {
+					t.distance = u.distance;
+					t.node = u.node;
+				}
+			}
+		};
+			
+		Min min = IntStream.range(0, graph.getNodeCount()).parallel().collect(Min::new, accumulator, combiner);
+	
+		return min.node;
 	}
 
 	public static IntComparator getDijkstraComparator(Int2IntMap distanceToStart) {

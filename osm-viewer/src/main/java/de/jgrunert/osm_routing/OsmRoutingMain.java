@@ -31,6 +31,8 @@ import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOpenAerialTileSource
 import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOsmTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
 
+import de.jgrunert.osm_routing.OsmRoutingMapController.Progress;
+
 /**
  * Demonstrates the usage of {@link JMapViewer}
  *
@@ -46,6 +48,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
     private final JProgressBar pedestrianProgress;
     private final JProgressBar carShortestProgress;
     private final JProgressBar carFastestProgress;
+    private final JProgressBar hopDistanceProgress;
     
 
     /**
@@ -62,15 +65,21 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         pedestrianProgress = new JProgressBar();
         carShortestProgress = new JProgressBar();
         carFastestProgress = new JProgressBar();
+        hopDistanceProgress = new JProgressBar();
+
         pedestrianProgress.setVisible(false);
         carShortestProgress.setVisible(false);
         carFastestProgress.setVisible(false);
+        hopDistanceProgress.setVisible(false);
         
 		pedestrianProgress.setStringPainted(true);
 		carShortestProgress.setStringPainted(true);
 		carFastestProgress.setStringPainted(true);
+		hopDistanceProgress.setStringPainted(true);
 		
-        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching,pedestrianProgress,carShortestProgress,carFastestProgress);
+		Progress progress = new Progress(pedestrianProgress, carShortestProgress, carFastestProgress, hopDistanceProgress);
+		
+        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching,progress);
 
         // Listen to the map viewer for user operations so components will
         // receive events and update
@@ -141,6 +150,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         helpPanel.add(pedestrianProgress);
         helpPanel.add(carShortestProgress);
         helpPanel.add(carFastestProgress);
+        helpPanel.add(hopDistanceProgress);
     
         
         map().addMouseListener(new MouseAdapter() {

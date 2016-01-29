@@ -118,6 +118,7 @@ public class Graph {
 		float y = latOfNode - lat;
 		float x = lonOfNode - lon;
 		float dist = (float) Math.sqrt(x * x + y * y);
+		dist*= 80_000; // approximate distannce of one longitude
 		return dist;
 	}
 	

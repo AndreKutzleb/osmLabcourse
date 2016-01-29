@@ -23,6 +23,8 @@ import org.openstreetmap.gui.jmapviewer.checkBoxTree.CheckBoxNodePanel;
 import org.openstreetmap.gui.jmapviewer.checkBoxTree.CheckBoxTree;
 import org.openstreetmap.gui.jmapviewer.interfaces.MapObject;
 
+import de.jgrunert.osm_routing.OsmRoutingMapController.Progress;
+
 /**
  * Tree of layers for JMapViewer component
  * @author galo
@@ -36,11 +38,11 @@ public class JMapViewerTree extends JPanel{
     private JPanel treePanel;
     private JSplitPane splitPane;
 
-    public JMapViewerTree(String name, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) throws IOException {
-        this(name, false, cacheFolder, doCaching,ped,carS,carF);
+    public JMapViewerTree(String name, String cacheFolder, boolean doCaching,Progress progress) throws IOException {
+        this(name, false, cacheFolder, doCaching,progress);
     }
 
-    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) throws IOException {
+    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching,Progress progress) throws IOException {
         super();
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
@@ -49,7 +51,7 @@ public class JMapViewerTree extends JPanel{
         treePanel.setLayout(new BorderLayout());
         treePanel.add(tree, BorderLayout.CENTER);
         treePanel.add(new JLabel("<html><center>Use right mouse button to<br />show/hide texts</center></html>"), BorderLayout.SOUTH);
-        map = new JMapViewer(cacheFolder, doCaching,ped,carS,carF);
+        map = new JMapViewer(cacheFolder, doCaching,progress);
 
         splitPane.setOneTouchExpandable(true);
         splitPane.setDividerLocation(150);

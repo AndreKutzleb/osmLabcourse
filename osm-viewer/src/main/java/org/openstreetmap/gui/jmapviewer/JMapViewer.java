@@ -37,6 +37,7 @@ import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
 
 import de.jgrunert.osm_routing.OsmRoutingMapController;
+import de.jgrunert.osm_routing.OsmRoutingMapController.Progress;
 
 /**
  * Provides a simple panel that displays pre-rendered map tiles loaded from the
@@ -104,12 +105,13 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * or use mouse wheel for zooming. Loaded tiles are stored in a
      * {@link MemoryTileCache} and the tile loader uses 4 parallel threads for
      * retrieving the tiles.
+     * @param progress 
      * @throws IOException 
      */
-    public JMapViewer(String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) throws IOException {
-        this(new MemoryTileCache(), cacheFolder, doCaching,ped,carS,carF);
+    public JMapViewer(String cacheFolder, boolean doCaching,Progress progress) throws IOException {
+        this(new MemoryTileCache(), cacheFolder, doCaching,progress);
         //new DefaultMapController(this);
-        new OsmRoutingMapController(this,ped,carS,carF);
+        new OsmRoutingMapController(this,progress);
     }
 
     /**
@@ -118,8 +120,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @deprecated @param downloadThreadCount not used anymore
      */
     @Deprecated
-    public JMapViewer(TileCache tileCache, int downloadThreadCount, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
-        this(tileCache, cacheFolder, doCaching,ped,carS,carF);
+    public JMapViewer(TileCache tileCache, int downloadThreadCount, String cacheFolder, boolean doCaching,Progress progress) {
+        this(tileCache, cacheFolder, doCaching,progress);
     }
 
     /**
@@ -127,7 +129,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @param tileCache The cache where to store tiles
      *
      */
-    public JMapViewer(TileCache tileCache, String cacheFolder, boolean doCaching,JProgressBar ped, JProgressBar carS, JProgressBar carF) {
+    public JMapViewer(TileCache tileCache, String cacheFolder, boolean doCaching, Progress progress) {
         tileSource = new OsmTileSource.Mapnik();
         tileController = new TileController(tileSource, tileCache, this, cacheFolder, doCaching);
         mapMarkerList = Collections.synchronizedList(new LinkedList<MapMarker>());
