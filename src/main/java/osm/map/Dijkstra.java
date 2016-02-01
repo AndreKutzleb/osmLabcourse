@@ -41,6 +41,8 @@ public class Dijkstra {
 		}
 	}
 
+	private static final boolean FAST_FOLLOW = false;
+
 	final Graph graph;
 	final int[] refArray;
 	final int[] successor;
@@ -96,7 +98,7 @@ public class Dijkstra {
 
 		calculateAdditionalInfo(path, edgeSpeeds, distances);
 
-		return new Route(path, edgeSpeeds, distances,travelType);
+		return new Route(path, edgeSpeeds, distances, travelType);
 	}
 
 	private void calculateAdditionalInfo(IntList path, ByteList edgeSpeeds,
@@ -154,36 +156,40 @@ public class Dijkstra {
 
 			int distanceToVisited = refArray[next];
 
-			graph.forEachNeighbourOf(
-					next,
+			graph.forEachNeighbourOf(next,
 					(neighbour) -> {
-
-						if (!visited[neighbour]) {
-							int distanceToStartOfNeighbour = refArray[neighbour];
-							int distanceFromNext = distanceToVisited
-									+ determineDistance(next, neighbour);
-
-							// already in queue but not yet visited
-							if (queue.contains(neighbour)) {
-
-								boolean improvement = distanceFromNext < distanceToStartOfNeighbour
-										|| distanceToStartOfNeighbour == 0;
-
-								if (improvement) {
-									// can get there faster
-									refArray[neighbour] = distanceFromNext;
-									successor[neighbour] = next;
-									queue.changed(neighbour);
-								}
-							} else {
-								// add node for the first time
-								refArray[neighbour] = distanceFromNext;
-								successor[neighbour] = next;
-								queue.enqueue(neighbour);
-							}
+						if (visited[neighbour]) {
+							return;
 						}
 
-					});
+						int distanceToStartOfNeighbour = refArray[neighbour];
+						int distanceFromNext = distanceToVisited
+								+ determineDistance(next, neighbour);
+
+						boolean neighbourInQueue = queue.contains(neighbour);
+
+						// already in queue but not yet visited
+					if (neighbourInQueue) {
+						// fast follow heir auch ? TODO
+						
+						boolean improvement = distanceFromNext < distanceToStartOfNeighbour
+								|| distanceToStartOfNeighbour == 0;
+
+						if (improvement) {
+							// can get there faster
+							refArray[neighbour] = distanceFromNext;
+							successor[neighbour] = next;
+							queue.changed(neighbour);
+						}
+					}	
+					 else {
+						// add node for the first time
+						refArray[neighbour] = distanceFromNext;
+						successor[neighbour] = next;
+						queue.enqueue(neighbour);
+
+					}
+				});
 		}
 		progressConsumer.accept(100);
 
@@ -264,46 +270,12 @@ public class Dijkstra {
 		return travelType.getName();
 	}
 
-	// // fastforward
-	// int distanceFromNext = determineDistance(
-	// distanceToVisited, next, neighbour);
-	//
-	// int beforeNeighbour = next;
-	// int currNeighbour = neighbour;
-	// // while(true)
-	// int nextNeighbour = graph.neighbourOf(
-	// currNeighbour, beforeNeighbour);
-	// while (graph.neighbourCount(currNeighbour) == 2
-	// && !visited[nextNeighbour]) {
-	// visited[currNeighbour] = true;
-	// visitedCount++;
-	//
-	// successor[currNeighbour] = beforeNeighbour;
-	// distanceFromNext+= determineDistance(beforeNeighbour,
-	// currNeighbour);
-	//
-	// beforeNeighbour = currNeighbour;
-	// currNeighbour = nextNeighbour;
-	// nextNeighbour = graph.neighbourOf(
-	// currNeighbour, beforeNeighbour);
-	//
-	// }
-
-	// else {
 	//
 	//
-	// if (queue.contains(currNeighbour)) {
 	//
-	// int distanceToStartOfNeighbour = refArray[currNeighbour];
 	//
-	// boolean improvement = distanceFromNext < distanceToStartOfNeighbour
-	// || distanceToStartOfNeighbour == 0;
+	// } else {
 	//
-	// if (improvement) {
-	// // can get there faster
-	// refArray[currNeighbour] = distanceFromNext;
-	// successor[currNeighbour] = beforeNeighbour;
-	// queue.changed(currNeighbour);
 	// }
 
 }

@@ -99,10 +99,10 @@ public class OsmRoutingMapController extends JMapController implements
 		File dataFolder = new File("data");
 		dataFolder.mkdirs();
 
-		FilenameFilter folderFilter = (dir, name) -> new File(name).isDirectory() && !new File(name).getName().startsWith("_");
+		FilenameFilter folderFilter = (dir, name) -> new File(dataFolder.getAbsolutePath() + File.separator + name).isDirectory() && !new File(dataFolder.getAbsolutePath() + File.separator + name).getName().startsWith("_");
 		
 		String[] folders = dataFolder.list(folderFilter);
-		
+		System.out.println(dataFolder);
 		if (folders.length == 0) {
 			final JFileChooser fc = new JFileChooser();
 			fc.setFileFilter(new FileFilter() {
@@ -245,6 +245,7 @@ public class OsmRoutingMapController extends JMapController implements
 			boolean cancel = localWorkers.values().stream().filter(DijkstraWorker::isCancelled).findAny().isPresent();
 
 			if (stop) {
+				
 				canRoute = true;
 			}
 
@@ -292,6 +293,12 @@ public class OsmRoutingMapController extends JMapController implements
 			dijkstraMutex.release(4);
 			return false;
 		}
+		dijkstras.values().forEach(d -> {
+			System.out.println(d.travelType.getName() + " reset    time: " + d.resetDuration + "ms");
+			System.out.println(d.travelType.getName() + " dijkstra time: " + d.dijkstraDuration + "ms");
+			});
+		
+		
 		List<Route> routes = dijkstras.values().stream().map(dijkstra -> dijkstra.getPath(destinationNode)).collect(Collectors.toList());
 
 		map.removeAllMapPolygons();
