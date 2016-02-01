@@ -8,8 +8,11 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntHeapIndirectPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntList;
 
+import java.awt.Color;
 import java.util.Arrays;
 import java.util.function.IntConsumer;
+
+import javax.swing.JProgressBar;
 
 import osmlab.io.AbstractHighwaySink;
 import osmlab.sink.ByteUtils;
@@ -17,7 +20,25 @@ import osmlab.sink.ByteUtils;
 public class Dijkstra {
 
 	public enum TravelType {
-		PEDESTRIAN, CAR_SHORTEST, CAR_FASTEST, HOP_DISTANCE
+		PEDESTRIAN("Pedestrian", Color.BLACK), CAR_SHORTEST("Car Shortest",
+				Color.RED), CAR_FASTEST("Car Fastest", Color.BLUE), HOP_DISTANCE(
+				"Hop Distance", Color.MAGENTA);
+
+		private TravelType(String name, Color color) {
+			this.name = name;
+			this.color = color;
+		}
+
+		private final String name;
+		private final Color color;
+
+		public String getName() {
+			return name;
+		}
+
+		public Color getColor() {
+			return color;
+		}
 	}
 
 	final Graph graph;
@@ -37,10 +58,14 @@ public class Dijkstra {
 
 	int latestSource = 0;
 	private int fromNode = -1;
+	public volatile long resetDuration;
+	public volatile long dijkstraDuration;
+	public final JProgressBar progress;
 
-	public Dijkstra(Graph graph, TravelType travelType) {
+	public Dijkstra(Graph graph, TravelType travelType, JProgressBar progress) {
 		this.travelType = travelType;
 		this.graph = graph;
+		this.progress = progress;
 		refArray = new int[graph.getNodeCount()];
 		successor = new int[graph.getNodeCount()];
 		visited = new boolean[graph.getNodeCount()];
@@ -52,7 +77,7 @@ public class Dijkstra {
 		IntList path = new IntArrayList();
 		// no way possible.
 		if (!visited[toNode]) {
-			return Route.noPath();
+			return Route.noPath(travelType);
 		}
 
 		int current = toNode;
@@ -67,14 +92,15 @@ public class Dijkstra {
 		path.add(fromNode);
 
 		ByteList edgeSpeeds = new ByteArrayList(path.size() - 1);
-		FloatList distances = new FloatArrayList(path.size() -1);
-	
-		calculateAdditionalInfo(path,edgeSpeeds,distances);
+		FloatList distances = new FloatArrayList(path.size() - 1);
 
-		return new Route(path, edgeSpeeds,distances);
+		calculateAdditionalInfo(path, edgeSpeeds, distances);
+
+		return new Route(path, edgeSpeeds, distances,travelType);
 	}
 
-	private void calculateAdditionalInfo(IntList path, ByteList edgeSpeeds, FloatList distances) {
+	private void calculateAdditionalInfo(IntList path, ByteList edgeSpeeds,
+			FloatList distances) {
 
 		for (int i = 1; i < path.size(); i++) {
 			int from = path.getInt(i - 1);
@@ -83,7 +109,7 @@ public class Dijkstra {
 			int edgeMetaData = graph.edgeMetaData(to, from);
 			byte decodeSpeed = ByteUtils.decodeSpeed(edgeMetaData);
 			edgeSpeeds.add(decodeSpeed);
-	
+
 			float distance = graph.distance(to, from);
 			distances.add(distance);
 		}
@@ -91,7 +117,11 @@ public class Dijkstra {
 
 	public void precalculateDijkstra(int fromNode, IntConsumer progressConsumer) {
 
+		long beforeResetData = System.currentTimeMillis();
 		resetData();
+		long afterResetData = System.currentTimeMillis();
+
+		resetDuration = afterResetData - beforeResetData;
 
 		this.fromNode = fromNode;
 
@@ -132,7 +162,7 @@ public class Dijkstra {
 							int distanceToStartOfNeighbour = refArray[neighbour];
 							int distanceFromNext = distanceToVisited
 									+ determineDistance(next, neighbour);
-							
+
 							// already in queue but not yet visited
 							if (queue.contains(neighbour)) {
 
@@ -145,8 +175,7 @@ public class Dijkstra {
 									successor[neighbour] = next;
 									queue.changed(neighbour);
 								}
-							}
-							else {
+							} else {
 								// add node for the first time
 								refArray[neighbour] = distanceFromNext;
 								successor[neighbour] = next;
@@ -158,15 +187,9 @@ public class Dijkstra {
 		}
 		progressConsumer.accept(100);
 
-		int visitedCountOfArray = 0;
-		for (boolean b : visited) {
-			if (b) {
-				visitedCountOfArray++;
-			}
-		}
-		System.out.println("arrayVisited:" + visitedCountOfArray);
-		System.out.println("visited:     " + visitedCount);
-		System.out.println("total:       " + graph.getNodeCount());
+		long afterDijkstra = System.currentTimeMillis();
+
+		dijkstraDuration = afterDijkstra - afterResetData;
 
 	}
 
@@ -184,7 +207,7 @@ public class Dijkstra {
 		int distance = (int) Math.max(1, distanceFloat);
 
 		switch (travelType) {
-			case PEDESTRIAN : {				
+			case PEDESTRIAN : {
 				if (pedestrian) {
 					return distance;
 				} else {
@@ -212,10 +235,9 @@ public class Dijkstra {
 					float kmh = AbstractHighwaySink.speedBitsToKmh(speed);
 
 					float secondsPerMeter = 3.6f / kmh;
-					float distanceMeters = distanceFloat / 1000f;
 
-					int timeTakenInSeconds = Math.round(distanceMeters
-							/ secondsPerMeter);
+					int timeTakenInSeconds = Math.round(distanceFloat
+							* secondsPerMeter);
 
 					timeTakenInSeconds = Math.max(1, timeTakenInSeconds);
 					// System.out.println(distance);
@@ -232,10 +254,14 @@ public class Dijkstra {
 			}
 			case HOP_DISTANCE :
 				return 1;
-				
+
 			default :
 				throw new IllegalStateException();
 		}
+	}
+
+	public String getName() {
+		return travelType.getName();
 	}
 
 	// // fastforward

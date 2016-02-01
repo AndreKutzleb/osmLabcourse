@@ -24,17 +24,7 @@ public class DijkstraWorker extends SwingWorker<Integer, String>{
 		  
 		  dijkstra.precalculateDijkstra(startNode, this::setProgress);
 		  dijkstraMutex.release();
-//	    // Start
-//	    publish("Start");
-//	    setProgress(1);
-//	    
-//	    // More work was done
-//	    publish("More work was done");
-//	    setProgress(10);
-//
-//	    // Complete
-//	    publish("Complete");
-//	    setProgress(100);
+
 	    return 100;
 	  }
 	  

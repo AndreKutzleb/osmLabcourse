@@ -14,7 +14,12 @@ import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.stream.Collectors;
 
 import javax.swing.JFileChooser;
 import javax.swing.JProgressBar;
@@ -66,12 +71,9 @@ public class OsmRoutingMapController extends JMapController implements
 
 	
 	private final Graph graph;
-	private final Dijkstra dijkstraPedestrian;
-	private final Dijkstra dijkstraCarShortest;
-	private final Dijkstra dijkstraCarFastest;
-	private final Dijkstra dijkstraHopDistance;
+	private final Map<TravelType, Dijkstra> dijkstras = new HashMap<>();
 
-	private final Progress progress;
+//	private final Progress progress;
 	
 	public static class Progress {
 		public final JProgressBar ped;
@@ -90,7 +92,7 @@ public class OsmRoutingMapController extends JMapController implements
 
 	public OsmRoutingMapController(JMapViewer map, Progress progress) throws IOException {
 		super(map);
-		this.progress = progress;
+//		this.progress = progress;
 
 		Graph graph = null;
 
@@ -132,11 +134,10 @@ public class OsmRoutingMapController extends JMapController implements
 		graph = Graph.createGraph(folders[0] +".osm.pbf");
 
 		this.graph = graph;
-		this.dijkstraPedestrian = new Dijkstra(graph, TravelType.PEDESTRIAN);
-		this.dijkstraCarShortest = new Dijkstra(graph, TravelType.CAR_SHORTEST);
-		this.dijkstraCarFastest = new Dijkstra(graph, TravelType.CAR_FASTEST);
-		this.dijkstraHopDistance = new Dijkstra(graph, TravelType.HOP_DISTANCE);
-
+		dijkstras.put(TravelType.PEDESTRIAN, new Dijkstra(graph, TravelType.PEDESTRIAN,progress.ped));
+		dijkstras.put(TravelType.CAR_SHORTEST, new Dijkstra(graph, TravelType.CAR_SHORTEST,progress.carS));
+		dijkstras.put(TravelType.CAR_FASTEST, new Dijkstra(graph, TravelType.CAR_FASTEST,progress.carF));
+		dijkstras.put(TravelType.HOP_DISTANCE, new Dijkstra(graph, TravelType.HOP_DISTANCE,progress.hop));
 	}
 
 	@Override
@@ -205,69 +206,43 @@ public class OsmRoutingMapController extends JMapController implements
 	private final Semaphore dijkstraMutex = new Semaphore(4);
 	boolean canRoute = false;
 
-	volatile DijkstraWorker pedestrianRef = null;
-	volatile DijkstraWorker carShortestRef = null;
-	volatile DijkstraWorker carFastestRef = null;
-	volatile DijkstraWorker hopDistanceRef = null;
+	private final Map<TravelType, DijkstraWorker> dijkstraWorkerRefs = Collections.synchronizedMap(new HashMap<>());
+	
 
 	private void onLeftClick(int startNode) throws InterruptedException {
 
-		boolean canCalculate = dijkstraMutex.tryAcquire(4);
+		boolean canCalculate = dijkstraMutex.tryAcquire(dijkstras.size());
 
 		if (!canCalculate) {
 			// currently running calculation. stop it.
-			pedestrianRef.cancel(true);
-			carShortestRef.cancel(true);
-			carFastestRef.cancel(true);
-			hopDistanceRef.cancel(true);
-
+			dijkstraWorkerRefs.values().forEach(worker -> worker.cancel(true));
 			// will wait for the old tasks to stop
-			dijkstraMutex.acquire(4);
+			dijkstraMutex.acquire(dijkstras.size());
 		}
 		canRoute = false;
 
-		final DijkstraWorker pedestrian = new DijkstraWorker(
-				dijkstraPedestrian, startNode, dijkstraMutex);
-		final DijkstraWorker carShortest = new DijkstraWorker(
-				dijkstraCarShortest, startNode, dijkstraMutex);
-		final DijkstraWorker carFastest = new DijkstraWorker(
-				dijkstraCarFastest, startNode, dijkstraMutex);
-		final DijkstraWorker hopDistance = new DijkstraWorker(
-				dijkstraHopDistance, startNode, dijkstraMutex);
-
-		pedestrianRef = pedestrian;
-		carShortestRef = carShortest;
-		carFastestRef = carFastest;
-		hopDistanceRef = hopDistance;
-
-		progress.ped.setVisible(true);
-		progress.carS.setVisible(true);
-		progress.carF.setVisible(true);
-		progress.hop.setVisible(true);
+		Map<TravelType,DijkstraWorker> localWorkers = new HashMap<>();
+		dijkstras.values().forEach(dijkstra -> localWorkers.put(dijkstra.travelType, new DijkstraWorker(dijkstra, startNode, dijkstraMutex)));
+		dijkstraWorkerRefs.putAll(localWorkers);
+		dijkstras.values().forEach(dijkstra -> dijkstra.progress.setVisible(true));
 		
 		PropertyChangeListener p = (c) -> {
-			progress.ped.setValue(pedestrian.getProgress());
-			progress.carS.setValue(carShortest.getProgress());
-			progress.carF.setValue(carFastest.getProgress());
-			progress.hop.setValue(hopDistance.getProgress());
+			dijkstras.values().forEach(dijkstra -> {
+				DijkstraWorker responsibleWorker = localWorkers.get(dijkstra.travelType);
+				dijkstra.progress.setValue(responsibleWorker.getProgress());	
+				dijkstra.progress.setString(dijkstra.getName() +": " + responsibleWorker.getProgress() + "%");
+			});
 
-			progress.ped.setString("Pedestrian: " + pedestrian.getProgress() + "%");
-			progress.carS.setString("Car Shortest: " + carShortest.getProgress() + "%");
-			progress.carF.setString("Car Fastest: " + carFastest.getProgress() + "%");
-			progress.hop.setString("Hop Distance: " + hopDistance.getProgress() + "%");
-
-			float avgPercent = (pedestrian.getProgress()
-					+ carShortest.getProgress() + carFastest.getProgress()) / 300f;
+			double avgPercent = localWorkers.values().stream().mapToInt(DijkstraWorker::getProgress).average().getAsDouble();
+	
 			// draw temporary direct air line
 			if (stopDot != null) {
-				drawTempLine(startNode, stopDotNode, avgPercent);
+				drawTempLine(startNode, stopDotNode, (float) avgPercent);
 			}
+			
+			boolean stop = !localWorkers.values().stream().filter(d -> !d.isDone()).findAny().isPresent();
 
-			boolean stop = pedestrian.isDone() && carShortest.isDone()
-					&& carFastest.isDone() && hopDistance.isDone();
-
-			boolean cancel = pedestrian.isCancelled()
-					|| carShortest.isCancelled() || carFastest.isCancelled() || hopDistance.isCancelled();
+			boolean cancel = localWorkers.values().stream().filter(DijkstraWorker::isCancelled).findAny().isPresent();
 
 			if (stop) {
 				canRoute = true;
@@ -281,18 +256,10 @@ public class OsmRoutingMapController extends JMapController implements
 
 		};
 
-		pedestrian.addPropertyChangeListener(p);
-		carShortest.addPropertyChangeListener(p);
-		carFastest.addPropertyChangeListener(p);
-		hopDistance.addPropertyChangeListener(p);
+		localWorkers.values().forEach(worker -> worker.addPropertyChangeListener(p));
+		localWorkers.values().forEach(DijkstraWorker::execute);
 	
-		pedestrian.execute();
-		carShortest.execute();
-		carFastest.execute();
-		hopDistance.execute();
-
 		map.removeAllMapPolygons();
-
 	}
 
 	private void drawTempLine(int fromNode, int toNode, float percent) {
@@ -325,26 +292,18 @@ public class OsmRoutingMapController extends JMapController implements
 			dijkstraMutex.release(4);
 			return false;
 		}
-		Route pedestrianPath = dijkstraPedestrian.getPath(destinationNode);
-		Route carShortestPath = dijkstraCarShortest.getPath(destinationNode);
-		Route carFastestPath = dijkstraCarFastest.getPath(destinationNode);
-		Route hopDistancePath = dijkstraHopDistance.getPath(destinationNode);
+		List<Route> routes = dijkstras.values().stream().map(dijkstra -> dijkstra.getPath(destinationNode)).collect(Collectors.toList());
 
 		map.removeAllMapPolygons();
-
-		drawPath(pedestrianPath, Color.BLACK,"Pedestrian",2);
-		drawPath(carShortestPath, Color.RED,"Car Shortest",3);
-		drawPath(carFastestPath, Color.BLUE,"Car Fastest",4);
-		drawPath(hopDistancePath, Color.MAGENTA,"Hop Distance",8);
+		
+		routes.forEach(this::drawPath);
 
 		dijkstraMutex.release(4);
 		return true;
 
 	}
 
-
-
-	private void drawPath(Route route, Color color, String name, int part) {
+	private void drawPath(Route route) {
 		
 		IntList path = route.path;
 
@@ -357,12 +316,14 @@ public class OsmRoutingMapController extends JMapController implements
 			Coordinate b = new Coordinate(graph.latOf(to), graph.lonOf(to));
 
 			MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
-			routPoly.setColor(color);
+			routPoly.setColor(route.travelType.getColor());
 		
 //			if(i % 10 == 0) {
 //				routPoly.setName(""+route.edgeSpeeds.getByte(i-1));
 //			}
-			if(i == path.size() / part) {
+			// distribute name to random position
+			if(i == route.path.size() / 2) {
+				String name = route.travelType.getName() + ": ";
 				name+= String.format("%.4f", route.totalDistance());
 				routPoly.setName(name);
 			}
