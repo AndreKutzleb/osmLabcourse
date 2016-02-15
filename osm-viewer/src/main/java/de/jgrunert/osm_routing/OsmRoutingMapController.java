@@ -11,8 +11,6 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.beans.PropertyChangeListener;
-import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -21,10 +19,6 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
-import javax.swing.JFileChooser;
-import javax.swing.JProgressBar;
-import javax.swing.filechooser.FileFilter;
-
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapController;
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
@@ -32,12 +26,10 @@ import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.MapPolygonImpl;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 
-import osm.map.Dijkstra;
 import osm.map.Dijkstra.TravelType;
 import osm.map.Graph;
 import osm.map.GraphClickFinder;
 import osm.map.Route;
-import osmlab.OSMFileConverter;
 import osmlab.sink.GeoUtils.FloatPoint;
 import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 
@@ -69,75 +61,16 @@ public class OsmRoutingMapController extends JMapController implements
 	private boolean wheelZoomEnabled = true;
 	private boolean doubleClickZoomEnabled = true;
 
-	
 	private final Graph graph;
-	private final Map<TravelType, Dijkstra> dijkstras = new HashMap<>();
+	private final RoutingOptions options;
 
 //	private final Progress progress;
 	
-	public static class Progress {
-		public final JProgressBar ped;
-		public final JProgressBar carS; 
-		public final JProgressBar carF;
-		public final JProgressBar hop;
-	
-		public Progress(JProgressBar ped, JProgressBar carS,
-				JProgressBar carF, JProgressBar hop) {
-			this.ped = ped;
-			this.carS = carS;
-			this.carF = carF;
-			this.hop = hop;
-		}	
-	}
 
-	public OsmRoutingMapController(JMapViewer map, Progress progress) throws IOException {
+	public OsmRoutingMapController(JMapViewer map, RoutingOptions options) throws IOException {
 		super(map);
-//		this.progress = progress;
-
-		Graph graph = null;
-
-		File dataFolder = new File("data");
-		dataFolder.mkdirs();
-
-		FilenameFilter folderFilter = (dir, name) -> new File(dataFolder.getAbsolutePath() + File.separator + name).isDirectory() && !new File(dataFolder.getAbsolutePath() + File.separator + name).getName().startsWith("_");
-		
-		String[] folders = dataFolder.list(folderFilter);
-		System.out.println(dataFolder);
-		if (folders.length == 0) {
-			final JFileChooser fc = new JFileChooser();
-			fc.setFileFilter(new FileFilter() {
-
-				@Override
-				public String getDescription() {
-					return "osm.pbf files";
-				}
-
-				@Override
-				public boolean accept(File f) {
-					return f.getAbsolutePath().endsWith(".osm.pbf") || f.isDirectory();
-				}
-			});
-			fc.setDialogTitle("Choose osm file");
-
-			int returnVal = fc.showOpenDialog(null);
-
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				OSMFileConverter
-						.process(fc.getSelectedFile().getAbsoluteFile());
-			} else {
-				System.exit(0);
-			}
-		}
-		
-		folders = dataFolder.list(folderFilter);
-		
-		graph = Graph.createGraph(folders[0] +".osm.pbf");
-
-		this.graph = graph;
-		dijkstras.put(TravelType.PEDESTRIAN, new Dijkstra(graph, TravelType.PEDESTRIAN,progress.ped));
-		dijkstras.put(TravelType.CAR_SHORTEST, new Dijkstra(graph, TravelType.CAR_SHORTEST,progress.carS));
-		dijkstras.put(TravelType.CAR_FASTEST, new Dijkstra(graph, TravelType.CAR_FASTEST,progress.carF));
-		dijkstras.put(TravelType.HOP_DISTANCE, new Dijkstra(graph, TravelType.HOP_DISTANCE,progress.hop));
+		this.graph = options.graph;
+		this.options = options;
 	}
 
 	@Override
@@ -211,23 +144,23 @@ public class OsmRoutingMapController extends JMapController implements
 
 	private void onLeftClick(int startNode) throws InterruptedException {
 
-		boolean canCalculate = dijkstraMutex.tryAcquire(dijkstras.size());
+		boolean canCalculate = dijkstraMutex.tryAcquire(options.size());
 
 		if (!canCalculate) {
 			// currently running calculation. stop it.
 			dijkstraWorkerRefs.values().forEach(worker -> worker.cancel(true));
 			// will wait for the old tasks to stop
-			dijkstraMutex.acquire(dijkstras.size());
+			dijkstraMutex.acquire(options.size());
 		}
 		canRoute = false;
 
 		Map<TravelType,DijkstraWorker> localWorkers = new HashMap<>();
-		dijkstras.values().forEach(dijkstra -> localWorkers.put(dijkstra.travelType, new DijkstraWorker(dijkstra, startNode, dijkstraMutex)));
+		options.getRoutingOptions().values().forEach(dijkstra -> localWorkers.put(dijkstra.travelType, new DijkstraWorker(dijkstra, startNode, dijkstraMutex)));
 		dijkstraWorkerRefs.putAll(localWorkers);
-		dijkstras.values().forEach(dijkstra -> dijkstra.progress.setVisible(true));
+		options.getRoutingOptions().values().forEach(dijkstra -> dijkstra.progress.setVisible(true));
 		
 		PropertyChangeListener p = (c) -> {
-			dijkstras.values().forEach(dijkstra -> {
+			options.getRoutingOptions().values().forEach(dijkstra -> {
 				DijkstraWorker responsibleWorker = localWorkers.get(dijkstra.travelType);
 				dijkstra.progress.setValue(responsibleWorker.getProgress());	
 				dijkstra.progress.setString(dijkstra.getName() +": " + responsibleWorker.getProgress() + "%");
@@ -293,13 +226,13 @@ public class OsmRoutingMapController extends JMapController implements
 			dijkstraMutex.release(4);
 			return false;
 		}
-		dijkstras.values().forEach(d -> {
-			System.out.println(d.travelType.getName() + " reset    time: " + d.resetDuration + "ms");
-			System.out.println(d.travelType.getName() + " dijkstra time: " + d.dijkstraDuration + "ms");
+		options.getRoutingOptions().values().forEach(d -> {
+			System.out.println(d.travelType.name + " reset    time: " + d.resetDuration + "ms");
+			System.out.println(d.travelType.name + " dijkstra time: " + d.dijkstraDuration + "ms");
 			});
 		
 		
-		List<Route> routes = dijkstras.values().stream().map(dijkstra -> dijkstra.getPath(destinationNode)).collect(Collectors.toList());
+		List<Route> routes = options.getRoutingOptions().values().stream().map(dijkstra -> dijkstra.getPath(destinationNode)).collect(Collectors.toList());
 
 		map.removeAllMapPolygons();
 		
@@ -323,14 +256,14 @@ public class OsmRoutingMapController extends JMapController implements
 			Coordinate b = new Coordinate(graph.latOf(to), graph.lonOf(to));
 
 			MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
-			routPoly.setColor(route.travelType.getColor());
+			routPoly.setColor(route.travelType.color);
 		
 //			if(i % 10 == 0) {
 //				routPoly.setName(""+route.edgeSpeeds.getByte(i-1));
 //			}
 			// distribute name to random position
 			if(i == route.path.size() / 2) {
-				String name = route.travelType.getName() + ": ";
+				String name = route.travelType.name + ": ";
 				name+= String.format("%.4f", route.totalDistance());
 				routPoly.setName(name);
 			}

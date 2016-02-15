@@ -16,40 +16,41 @@ import javax.swing.JProgressBar;
 
 import osmlab.io.AbstractHighwaySink;
 import osmlab.sink.ByteUtils;
+import osmlab.sink.FormatConstants;
 
 public class Dijkstra {
 
 	public enum TravelType {
-		PEDESTRIAN("Pedestrian", Color.BLACK), CAR_SHORTEST("Car Shortest",
-				Color.RED), CAR_FASTEST("Car Fastest", Color.BLUE), HOP_DISTANCE(
-				"Hop Distance", Color.MAGENTA);
-
-		private TravelType(String name, Color color) {
+		PEDESTRIAN("Pedestrian", Color.BLACK,false), 
+		CAR_SHORTEST("Car Shortest", Color.RED,false), 
+		CAR_FASTEST("Car Fastest", Color.BLUE,false), 
+		HOP_DISTANCE("Hop Distance", Color.MAGENTA,false),
+		PEDESTRIAN_FF("Pedestrian FF", Color.BLACK,true), 
+		CAR_SHORTEST_FF("Car Shortest FF", Color.RED,true), 
+		CAR_FASTEST_FF("Car Fastest FF", Color.BLUE,true), 
+		HOP_DISTANCE_FF("Hop Distance FF", Color.MAGENTA,true);
+		
+		
+		private TravelType(String name, Color color, boolean fastFollow) {
 			this.name = name;
 			this.color = color;
+			this.fastFollow = fastFollow;
 		}
 
-		private final String name;
-		private final Color color;
-
-		public String getName() {
-			return name;
-		}
-
-		public Color getColor() {
-			return color;
-		}
+		public final String name;
+		public final Color color;
+		public final boolean fastFollow;		
+		
 	}
 
-	private static final boolean FAST_FOLLOW = false;
 
-	final Graph graph;
-	final int[] refArray;
-	final int[] successor;
-	final boolean[] visited;
+	private final Graph graph;
+	private final int[] refArray;
+	private final int[] successor;
+	private final boolean[] visited;
 	public final TravelType travelType;
-	int visitedCount = 0;
-	final IntHeapIndirectPriorityQueue queue;
+	private int visitedCount = 0;
+	private final IntHeapIndirectPriorityQueue queue;
 
 	private void resetData() {
 		Arrays.fill(refArray, 0);
@@ -131,6 +132,7 @@ public class Dijkstra {
 
 		int currentProgress = 0;
 
+
 		progressConsumer.accept(0);
 		while (!queue.isEmpty()) {
 
@@ -143,6 +145,7 @@ public class Dijkstra {
 				progressConsumer.accept(currentProgress);
 
 				if (Thread.currentThread().isInterrupted()) {
+					System.out.println("thread is interrupted");
 					return;
 				}
 			}
@@ -156,43 +159,80 @@ public class Dijkstra {
 
 			int distanceToVisited = refArray[next];
 
-			graph.forEachNeighbourOf(next,
-					(neighbour) -> {
-						if (visited[neighbour]) {
-							return;
-						}
+			int offset = graph.offsets[next] + FormatConstants.CONSTANT_NODESIZE; // skip lat and lon
+			int upperLimit;
+			if (next + 1 == graph.nodeCount) {
+				upperLimit = graph.nodeCount;
+			} else {
+				upperLimit = graph.offsets[next + 1];
+			}
+			for (int i = offset; i < upperLimit; i += FormatConstants.CONSTANT_EDGESIZE) {
+				int neighbour = ByteUtils.decodeNeighbour(graph.data[i]);
 
-						int distanceToStartOfNeighbour = refArray[neighbour];
-						int distanceFromNext = distanceToVisited
-								+ determineDistance(next, neighbour);
+				if (visited[neighbour]) {
+					continue;
+				}
 
-						boolean neighbourInQueue = queue.contains(neighbour);
+				int distanceToStartOfNeighbour = refArray[neighbour];
+				int distanceFromNext = distanceToVisited
+						+ determineDistance(next, neighbour);
 
-						// already in queue but not yet visited
-					if (neighbourInQueue) {
-						// fast follow heir auch ? TODO
+				boolean neighbourInQueue = queue.contains(neighbour);
+
+				// already in queue but not yet visited
+				if (neighbourInQueue) {
+
+					boolean improvement = distanceFromNext < distanceToStartOfNeighbour
+							|| distanceToStartOfNeighbour == 0;
+
+					if (improvement) {
+						// can get there faster
+						refArray[neighbour] = distanceFromNext;
+						successor[neighbour] = next;
+						queue.changed(neighbour);
+					}
+				} else if (this.travelType.fastFollow && graph.neighbourCount(neighbour) == 2) {
+					int alreadyVisited = next;
+					int toSkip = neighbour;
+					while(!visited[toSkip] && graph.neighbourCount(toSkip) == 2) {
+						visitedCount++;
+						visited[toSkip] = true;
+						refArray[toSkip] = 0; // TODO
+						successor[toSkip] = alreadyVisited;
 						
-						boolean improvement = distanceFromNext < distanceToStartOfNeighbour
-								|| distanceToStartOfNeighbour == 0;
+						int nextToVisit = graph.neighbourOf(toSkip, alreadyVisited);
+						alreadyVisited = toSkip;
+						toSkip = nextToVisit;
+					}
+					if(!visited[toSkip]) {
+						refArray[toSkip] = 0; // TODO
+						successor[toSkip] = alreadyVisited;
+						queue.enqueue(neighbour);
+					} else {
+						// need to update if better
+						int distanceToSkip = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip);
+						boolean improvement = distanceToSkip < refArray[toSkip];
 
 						if (improvement) {
 							// can get there faster
-							refArray[neighbour] = distanceFromNext;
-							successor[neighbour] = next;
-							queue.changed(neighbour);
+							refArray[toSkip] = distanceToSkip;
+							successor[toSkip] = alreadyVisited;
+							queue.changed(toSkip);
 						}
-					}	
-					 else {
-						// add node for the first time
-						refArray[neighbour] = distanceFromNext;
-						successor[neighbour] = next;
-						queue.enqueue(neighbour);
-
+		
 					}
-				});
+				} else {	
+					// add node for the first time
+					refArray[neighbour] = distanceFromNext;
+					successor[neighbour] = next;
+					queue.enqueue(neighbour);
+
+				}
+
+			}
+
 		}
 		progressConsumer.accept(100);
-
 		long afterDijkstra = System.currentTimeMillis();
 
 		dijkstraDuration = afterDijkstra - afterResetData;
@@ -213,7 +253,8 @@ public class Dijkstra {
 		int distance = (int) Math.max(1, distanceFloat);
 
 		switch (travelType) {
-			case PEDESTRIAN : {
+			case PEDESTRIAN : 
+			case PEDESTRIAN_FF: {
 				if (pedestrian) {
 					return distance;
 				} else {
@@ -221,7 +262,8 @@ public class Dijkstra {
 				}
 			}
 
-			case CAR_SHORTEST : {
+			case CAR_SHORTEST :
+			case CAR_SHORTEST_FF : {
 				if (speed == 0) {
 					return A_LARGE_NUMBER;
 				} else {
@@ -229,7 +271,8 @@ public class Dijkstra {
 					return distance;
 				}
 			}
-			case CAR_FASTEST : {
+			case CAR_FASTEST :
+			case CAR_FASTEST_FF : {
 				if (speed == 0) {
 					return distance + A_LARGE_NUMBER;
 				} else {
@@ -259,6 +302,7 @@ public class Dijkstra {
 				}
 			}
 			case HOP_DISTANCE :
+			case HOP_DISTANCE_FF :
 				return 1;
 
 			default :
@@ -267,7 +311,7 @@ public class Dijkstra {
 	}
 
 	public String getName() {
-		return travelType.getName();
+		return travelType.name;
 	}
 
 	//

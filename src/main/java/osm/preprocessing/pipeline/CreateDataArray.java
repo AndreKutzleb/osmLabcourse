@@ -9,16 +9,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
 import org.openstreetmap.osmosis.core.domain.v0_6.Way;
 
+import osm.map.Graph;
 import osm.preprocessing.DataProcessor;
 import osm.preprocessing.PipelineParts.PipelinePaths;
 import osmlab.io.AbstractHighwaySink;
 import osmlab.io.SimpleSink;
 import osmlab.sink.ByteUtils;
 import osmlab.sink.FormatConstants;
+import osmlab.sink.GeoUtils;
 import osmlab.sink.OsmUtils;
 import osmlab.sink.OsmUtils.TriConsumer;
 
@@ -119,7 +122,7 @@ public class CreateDataArray extends DataProcessor {
 					// There may be neighbours already, skip to first 0-spot
 					// (assuming no neighbour yet defaults to 0 in dataArray)
 					while (data[offset] != 0) {
-						offset++;
+						offset+= FormatConstants.CONSTANT_EDGESIZE;
 					}
 					// fill in data of connection - target id, speed and
 					// pedestrian yes/no
@@ -160,6 +163,8 @@ public class CreateDataArray extends DataProcessor {
 
 				@Override
 				public void complete() {
+					
+					calculateDistances();
 					// Write our final datastructures to disk as serialized java
 					// arrays - offsetarray and data array.
 					try {
@@ -174,9 +179,33 @@ public class CreateDataArray extends DataProcessor {
 					}
 
 				}
+
+				private void calculateDistances() {
+
+					Graph graph = new Graph(data, offsetArray);
+					
+					for (int nodeId = 0; nodeId < nodeCount; nodeId++) {
+						
+						if (nodeId % (nodeCount / 100) == 0) {
+							progressHandler.accept("Calculating distances between nodes",nodeId, nodeCount);
+						}
+				
+						
+								
+						int offsetOfNode = offsetArray[nodeId];
+						AtomicInteger offsetOfDistance = new AtomicInteger(offsetOfNode + FormatConstants.CONSTANT_NODESIZE + 1);
+
+						graph.forEachEdgeOf(nodeId, (node, neighbour) -> {
+							float distance = GeoUtils.distFrom(graph.latOf(node), graph.lonOf(node), graph.latOf(neighbour), graph.lonOf(neighbour));
+							data[offsetOfDistance.intValue()] = Float.floatToRawIntBits(distance);
+							
+							offsetOfDistance.addAndGet(FormatConstants.CONSTANT_EDGESIZE);
+						});						
+					}
+				}
 			};
 
-			OsmUtils.readFromOsm(is, s);
+			OsmUtils.readFromOsm(s, is);
 		}
 	}
 

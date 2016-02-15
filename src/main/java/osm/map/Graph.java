@@ -8,6 +8,7 @@ import org.apache.commons.lang3.SerializationUtils;
 
 import osm.preprocessing.PipelineParts.PipelinePaths;
 import osmlab.sink.ByteUtils;
+import osmlab.sink.FormatConstants;
 import osmlab.sink.GeoUtils;
 import osmlab.sink.GeoUtils.FloatPoint;
 
@@ -16,13 +17,15 @@ public class Graph {
 	/**
 	 * Gives the offset in the data array for a given node id.
 	 */
-	private final int[] offsets;
+	final int[] offsets;
 
 	/**
 	 * Contains lat/lon of each node as well as edges from each node to other
 	 * nodes
 	 */
-	private final int[] data;
+	final int[] data;
+	
+	final int nodeCount;
 
 	/**
 	 * Loads the graph datastructure from disc.
@@ -48,6 +51,7 @@ public class Graph {
 	public Graph(int[] data, int[] offsets) {
 		this.data = data;
 		this.offsets = offsets;
+		this.nodeCount = offsets.length;
 	}
 
 	/**
@@ -76,8 +80,8 @@ public class Graph {
 	 * @return Number of nodes == all ids if iterated up to, but excluding this
 	 *         number
 	 */
-	public int getNodeCount() {
-		return offsets.length;
+	public final int getNodeCount() {
+		return nodeCount;
 	}
 
 	/**
@@ -93,33 +97,34 @@ public class Graph {
 	 * 
 	 * @return distance in millimeters.
 	 */
-	public float distance(int node, float toLat, float toLon) {
-		return distanceFast(node, toLat, toLon);
-	}
-	
-	public float distance(int nodeA, int nodeB) {
-		return distance(nodeA, latOf(nodeB), lonOf(nodeB));
-	}
-	
-	private float distancePrecise (int node, float toLat, float toLon) {
-		float latOfNode = latOf(node);
-	
-		float lonOfNode = lonOf(node);
-
-		float distance = GeoUtils.distFrom(latOfNode, lonOfNode, toLat, toLon);
-
-		return distance;
-	}
-
-	private float distanceFast(int node, float lat, float lon) {
+	public float distanceToCoordinates(int node, float toLat, float toLon) {
 		float latOfNode = latOf(node);
 		float lonOfNode = lonOf(node);
 
-		float y = latOfNode - lat;
-		float x = lonOfNode - lon;
+		float y = latOfNode - toLat;
+		float x = lonOfNode - toLon;
 		float dist = (float) Math.sqrt(x * x + y * y);
 		dist*= 80_000; // approximate distannce of one longitude
 		return dist;
+
+	}
+	
+	public float distance(int nodeA, int nodeB) {
+		int offset = offsets[nodeA] + FormatConstants.CONSTANT_NODESIZE; // skip lat and lon
+		int upperLimit;
+		if (nodeA + 1 == getNodeCount()) {
+			upperLimit = getNodeCount();
+		} else {
+			upperLimit = offsets[nodeA + 1];
+		}
+		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
+			int neighbour = ByteUtils.decodeNeighbour(data[i]);
+			if(neighbour == nodeB) {
+				return Float.intBitsToFloat(data[i+1]);
+			}
+		}
+
+		throw new IllegalArgumentException("no edge between " + nodeA + " and " + nodeB);
 	}
 	
 
@@ -204,7 +209,7 @@ public class Graph {
 		} else {
 			upperLimit = offsets[node + 1];
 		}
-		for (int i = offset; i < upperLimit; i++) {
+		for (int i = offset; i < upperLimit; i+= FormatConstants.CONSTANT_EDGESIZE) {
 			int neigbour = ByteUtils.decodeNeighbour(data[i]);
 			action.accept(neigbour);
 		}
@@ -228,7 +233,7 @@ public class Graph {
 		} else {
 			upperLimit = offsets[node + 1];
 		}
-		return upperLimit - offset;
+		return (upperLimit - offset) / 2;
 	}
 
 	public void forEachEdgeOf(int node, IntBiConsumer action) {
@@ -239,7 +244,7 @@ public class Graph {
 		} else {
 			upperLimit = offsets[node + 1];
 		}
-		for (int i = offset; i < upperLimit; i++) {
+		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
 			int neigbour = ByteUtils.decodeNeighbour(data[i]);
 			action.accept(node, neigbour);
 		}
@@ -263,13 +268,27 @@ public class Graph {
 		} else {
 			upperLimit = offsets[node + 1];
 		}
-		for (int i = offset; i < upperLimit; i++) {
+		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
 			int neighbour = ByteUtils.decodeNeighbour(data[i]);
 			if(neighbour != notThisNeighbour) {
 				return neighbour;
 			}
 		}
 		return ByteUtils.decodeNeighbour(data[offset]);
+	}
+
+	public void forEachEdge(int node, IntConsumer action) {
+		int offset = offsets[node] + FormatConstants.CONSTANT_NODESIZE; // skip lat and lon
+		int upperLimit;
+		if (node + 1 == getNodeCount()) {
+			upperLimit = getNodeCount();
+		} else {
+			upperLimit = offsets[node + 1];
+		}
+		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
+			int neighbour = ByteUtils.decodeNeighbour(data[i]);
+			action.accept(neighbour);
+		}		
 	}
 
 

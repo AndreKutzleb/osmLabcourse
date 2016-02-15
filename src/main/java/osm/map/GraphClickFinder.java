@@ -48,7 +48,7 @@ public class GraphClickFinder {
 		} else {
 			
 		int closestStartNode = findClosestStartNode(toLat,toLon);
-		if(graph.distance(closestStartNode, toLat, toLon) > CANNOT_LOOK_FOR_NODE_LIMIT) {
+		if(graph.distanceToCoordinates(closestStartNode, toLat, toLon) > CANNOT_LOOK_FOR_NODE_LIMIT) {
 			System.err.println("Returning closestStartNode");
 			return closestStartNode;
 		}
@@ -58,10 +58,10 @@ public class GraphClickFinder {
 	
 	private int findDeterministic(float toLat, float toLon) {
 		int closest = 0;
-		float closestDistance = graph.distance(0, toLat, toLon);
+		float closestDistance = graph.distanceToCoordinates(0, toLat, toLon);
 		
 		for(int node = 1; node <  graph.getNodeCount(); node++) {
-			float distance = graph.distance(node, toLat, toLon);
+			float distance = graph.distanceToCoordinates(node, toLat, toLon);
 			if(distance < closestDistance) {
 				closest = node;
 				closestDistance = distance;
@@ -82,7 +82,7 @@ public class GraphClickFinder {
 				
 			@Override
 			public void accept(Min arg0, int arg1) {
-				float dist = graph.distance(arg1,toLat,toLon);
+				float dist = graph.distanceToCoordinates(arg1,toLat,toLon);
 				if(dist < arg0.distance) {
 					arg0.distance = dist;
 					arg0.node = arg1;
@@ -130,7 +130,7 @@ public class GraphClickFinder {
 	
 	public int findClosestNodeDijkstra(int fromNode, float toLat, float toLon) {
 
-		float distanceFromClick = graph.distance(fromNode, toLat, toLon);
+		float distanceFromClick = graph.distanceToCoordinates(fromNode, toLat, toLon);
 
 		float shortestFoundDistance = Integer.MAX_VALUE;
 		int shortestFoundDistanceNode = 0;
@@ -156,7 +156,7 @@ public class GraphClickFinder {
 			visited.add(next);
 			int distanceToVisited = distanceToStart.get(next);
 
-			float geoDistToClick = graph.distance(next, toLat, toLon);
+			float geoDistToClick = graph.distanceToCoordinates(next, toLat, toLon);
 			if (geoDistToClick < shortestFoundDistance) {
 				shortestFoundDistance = geoDistToClick;
 				shortestFoundDistanceNode = next;
@@ -166,7 +166,7 @@ public class GraphClickFinder {
 					next,
 					(neighbour) -> {
 						if (!visited.contains(neighbour)
-								&& graph.distance(neighbour, toLat, toLon) < (1.1 * distanceFromClick)) {
+								&& graph.distanceToCoordinates(neighbour, toLat, toLon) < (1.1 * distanceFromClick)) {
 							// See if we can get there faster
 							int distanceToStartOfNeighbour = distanceToStart
 									.get(neighbour);
@@ -196,7 +196,7 @@ public class GraphClickFinder {
 		
 		for(int i = 0; i < numberOfRandomStartNodes; i++) {
 			int randomNode = rand.nextInt(graph.getNodeCount());
-			float distance = graph.distance(randomNode, toLat, toLon);
+			float distance = graph.distanceToCoordinates(randomNode, toLat, toLon);
 			
 			if(distance < minDist) {
 				minDist = distance;

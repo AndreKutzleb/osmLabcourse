@@ -81,7 +81,7 @@ public class Analyzer extends DataProcessor{
 				}
 			};
 			
-			OsmUtils.readFromOsm(is, s);
+			OsmUtils.readFromOsm(s, is);
 		}
 	}
 

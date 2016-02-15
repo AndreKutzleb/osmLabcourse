@@ -37,7 +37,7 @@ public class ExtractHighwayNodes extends DataProcessor {
 						paths.SOURCE_FILE));) {
 
 			HighwaySink sink = new HighwaySink(os, osMeta);
-			OsmUtils.readFromOsm(is, sink);
+			OsmUtils.readFromOsm(sink, is);
 		}
 	}
 

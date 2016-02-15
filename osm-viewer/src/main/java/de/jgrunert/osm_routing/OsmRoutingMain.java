@@ -10,15 +10,19 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.filechooser.FileFilter;
 
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.JMapViewerTree;
@@ -31,7 +35,10 @@ import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOpenAerialTileSource
 import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOsmTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
 
-import de.jgrunert.osm_routing.OsmRoutingMapController.Progress;
+import osm.map.Dijkstra;
+import osm.map.Dijkstra.TravelType;
+import osm.map.Graph;
+import osmlab.OSMFileConverter;
 
 /**
  * Demonstrates the usage of {@link JMapViewer}
@@ -45,11 +52,6 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
     private final JMapViewerTree treeMap;
 
-    private final JProgressBar pedestrianProgress;
-    private final JProgressBar carShortestProgress;
-    private final JProgressBar carFastestProgress;
-    private final JProgressBar hopDistanceProgress;
-    
 
     /**
      * Constructs the {@code Demo}.
@@ -59,27 +61,17 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         super("JMapViewer Demo");
         setSize(400, 400);
         
+        RoutingOptions options = initializeRouting(); 
+        if(options == null) {
+        	System.err.println("Failed to load, exiting.");
+        	System.exit(1);
+        }
+        
         String cacheFolder = "JMapViewerCache";
         boolean doCaching = true;
 
-        pedestrianProgress = new JProgressBar();
-        carShortestProgress = new JProgressBar();
-        carFastestProgress = new JProgressBar();
-        hopDistanceProgress = new JProgressBar();
-
-        pedestrianProgress.setVisible(false);
-        carShortestProgress.setVisible(false);
-        carFastestProgress.setVisible(false);
-        hopDistanceProgress.setVisible(false);
-        
-		pedestrianProgress.setStringPainted(true);
-		carShortestProgress.setStringPainted(true);
-		carFastestProgress.setStringPainted(true);
-		hopDistanceProgress.setStringPainted(true);
 		
-		Progress progress = new Progress(pedestrianProgress, carShortestProgress, carFastestProgress, hopDistanceProgress);
-		
-        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching,progress);
+        treeMap = new JMapViewerTree("Zones", cacheFolder, doCaching,options);
 
         // Listen to the map viewer for user operations so components will
         // receive events and update
@@ -146,12 +138,8 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
         add(treeMap, BorderLayout.CENTER);
 
-    
-        helpPanel.add(pedestrianProgress);
-        helpPanel.add(carShortestProgress);
-        helpPanel.add(carFastestProgress);
-        helpPanel.add(hopDistanceProgress);
-    
+        // add progressbars
+        options.getProgress().values().forEach(this::add);
         
         map().addMouseListener(new MouseAdapter() {
             @Override
@@ -177,7 +165,60 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         });
     }
 
-    private JMapViewer map() {
+    private RoutingOptions initializeRouting() throws IOException {
+    	Graph graph = null;
+
+		File dataFolder = new File("data");
+		dataFolder.mkdirs();
+
+		FilenameFilter folderFilter = (dir, name) -> new File(dataFolder.getAbsolutePath() + File.separator + name).isDirectory() && !new File(dataFolder.getAbsolutePath() + File.separator + name).getName().startsWith("_");
+		
+		String[] folders = dataFolder.list(folderFilter);
+		System.out.println(dataFolder);
+		if (folders.length == 0) {
+			final JFileChooser fc = new JFileChooser();
+			fc.setFileFilter(new FileFilter() {
+
+				@Override
+				public String getDescription() {
+					return "osm.pbf files";
+				}
+
+				@Override
+				public boolean accept(File f) {
+					return f.getAbsolutePath().endsWith(".osm.pbf") || f.isDirectory();
+				}
+			});
+			fc.setDialogTitle("Choose osm file");
+
+			int returnVal = fc.showOpenDialog(null);
+
+			if (returnVal == JFileChooser.APPROVE_OPTION) {
+				OSMFileConverter
+						.process(fc.getSelectedFile().getAbsoluteFile());
+			} else {
+				System.exit(0);
+			}
+		}
+		
+		folders = dataFolder.list(folderFilter);
+		
+		graph = Graph.createGraph(folders[0] +".osm.pbf");
+
+		RoutingOptions options = new RoutingOptions(graph);
+		
+		for(TravelType type : new TravelType[]{TravelType.CAR_FASTEST, TravelType.CAR_FASTEST_FF}) {
+			JProgressBar progress = new JProgressBar();
+			progress.setVisible(false);
+			progress.setStringPainted(true);
+			
+			options.addRoutingOption(new Dijkstra(graph, TravelType.CAR_SHORTEST,progress), progress);
+		}
+        
+		return options;
+	}
+
+	private JMapViewer map() {
         return treeMap.getViewer();
     }
 

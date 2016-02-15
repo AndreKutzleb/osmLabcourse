@@ -89,7 +89,7 @@ public class CreateOffsetArray extends DataProcessor{
 						offsetArrayRaw.writeInt(distanceFromStart); // 0 at start
 						for(int i = 1; i < outgoingEdgesOfNode.length; i++) {
 							previousOffsetToStart += FormatConstants.CONSTANT_NODESIZE; // space for lat/lon
-							previousOffsetToStart += outgoingEdgesOfNode[i-1]; // space for neighbours
+							previousOffsetToStart += outgoingEdgesOfNode[i-1] * FormatConstants.CONSTANT_EDGESIZE; // space for neighbours
 							offsetArrayRaw.writeInt(previousOffsetToStart);
 							
 							if(i % (outgoingEdgesOfNode.length / 100) == 0) {
@@ -98,7 +98,7 @@ public class CreateOffsetArray extends DataProcessor{
 						}
 						int totalLength = previousOffsetToStart;
 						totalLength+= FormatConstants.CONSTANT_NODESIZE; // space for lat/lon
-						totalLength += outgoingEdgesOfNode[outgoingEdgesOfNode.length-1]; // space for neighbours of last node
+						totalLength += (outgoingEdgesOfNode[outgoingEdgesOfNode.length-1] * FormatConstants.CONSTANT_EDGESIZE); // space for neighbours of last node
 						dataArraySize.writeInt(totalLength);
 					} catch (IOException e) {
 						e.printStackTrace();
@@ -106,7 +106,7 @@ public class CreateOffsetArray extends DataProcessor{
 				}
 			};
 			
-			OsmUtils.readFromOsm(is, s);
+			OsmUtils.readFromOsm(s, is);
 
 			
 		}

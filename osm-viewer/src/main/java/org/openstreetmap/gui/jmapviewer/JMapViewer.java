@@ -17,7 +17,6 @@ import java.util.List;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -37,7 +36,7 @@ import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
 
 import de.jgrunert.osm_routing.OsmRoutingMapController;
-import de.jgrunert.osm_routing.OsmRoutingMapController.Progress;
+import de.jgrunert.osm_routing.RoutingOptions;
 
 /**
  * Provides a simple panel that displays pre-rendered map tiles loaded from the
@@ -108,10 +107,10 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @param progress 
      * @throws IOException 
      */
-    public JMapViewer(String cacheFolder, boolean doCaching,Progress progress) throws IOException {
-        this(new MemoryTileCache(), cacheFolder, doCaching,progress);
+    public JMapViewer(String cacheFolder, boolean doCaching,RoutingOptions options) throws IOException {
+        this(new MemoryTileCache(), cacheFolder, doCaching,options);
         //new DefaultMapController(this);
-        new OsmRoutingMapController(this,progress);
+        new OsmRoutingMapController(this,options);
     }
 
     /**
@@ -120,8 +119,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @deprecated @param downloadThreadCount not used anymore
      */
     @Deprecated
-    public JMapViewer(TileCache tileCache, int downloadThreadCount, String cacheFolder, boolean doCaching,Progress progress) {
-        this(tileCache, cacheFolder, doCaching,progress);
+    public JMapViewer(TileCache tileCache, int downloadThreadCount, String cacheFolder, boolean doCaching,RoutingOptions options) {
+        this(tileCache, cacheFolder, doCaching,options);
     }
 
     /**
@@ -129,7 +128,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @param tileCache The cache where to store tiles
      *
      */
-    public JMapViewer(TileCache tileCache, String cacheFolder, boolean doCaching, Progress progress) {
+    public JMapViewer(TileCache tileCache, String cacheFolder, boolean doCaching, RoutingOptions options) {
         tileSource = new OsmTileSource.Mapnik();
         tileController = new TileController(tileSource, tileCache, this, cacheFolder, doCaching);
         mapMarkerList = Collections.synchronizedList(new LinkedList<MapMarker>());

@@ -14,7 +14,6 @@ import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
-import javax.swing.JProgressBar;
 import javax.swing.JSplitPane;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
@@ -23,7 +22,7 @@ import org.openstreetmap.gui.jmapviewer.checkBoxTree.CheckBoxNodePanel;
 import org.openstreetmap.gui.jmapviewer.checkBoxTree.CheckBoxTree;
 import org.openstreetmap.gui.jmapviewer.interfaces.MapObject;
 
-import de.jgrunert.osm_routing.OsmRoutingMapController.Progress;
+import de.jgrunert.osm_routing.RoutingOptions;
 
 /**
  * Tree of layers for JMapViewer component
@@ -38,11 +37,11 @@ public class JMapViewerTree extends JPanel{
     private JPanel treePanel;
     private JSplitPane splitPane;
 
-    public JMapViewerTree(String name, String cacheFolder, boolean doCaching,Progress progress) throws IOException {
-        this(name, false, cacheFolder, doCaching,progress);
+    public JMapViewerTree(String name, String cacheFolder, boolean doCaching,RoutingOptions options) throws IOException {
+        this(name, false, cacheFolder, doCaching,options);
     }
 
-    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching,Progress progress) throws IOException {
+    public JMapViewerTree(String name, boolean treeVisible, String cacheFolder, boolean doCaching,RoutingOptions options) throws IOException {
         super();
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
@@ -51,7 +50,7 @@ public class JMapViewerTree extends JPanel{
         treePanel.setLayout(new BorderLayout());
         treePanel.add(tree, BorderLayout.CENTER);
         treePanel.add(new JLabel("<html><center>Use right mouse button to<br />show/hide texts</center></html>"), BorderLayout.SOUTH);
-        map = new JMapViewer(cacheFolder, doCaching,progress);
+        map = new JMapViewer(cacheFolder, doCaching,options);
 
         splitPane.setOneTouchExpandable(true);
         splitPane.setDividerLocation(150);

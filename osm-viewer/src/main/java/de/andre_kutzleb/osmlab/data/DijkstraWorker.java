@@ -7,32 +7,38 @@ import javax.swing.SwingWorker;
 
 import osm.map.Dijkstra;
 
-public class DijkstraWorker extends SwingWorker<Integer, String>{
-	
+public class DijkstraWorker extends SwingWorker<Integer, String> {
+
 	private final Dijkstra dijkstra;
 	private int startNode;
 	private final Semaphore dijkstraMutex;
-	
-	public DijkstraWorker(Dijkstra dikjstra, int startNode, Semaphore dijkstraMutex) {
+
+	public DijkstraWorker(Dijkstra dikjstra, int startNode,
+			Semaphore dijkstraMutex) {
 		this.dijkstra = dikjstra;
 		this.startNode = startNode;
 		this.dijkstraMutex = dijkstraMutex;
 	}
-	
-	  @Override
-	  protected Integer doInBackground() throws Exception {
-		  
-		  dijkstra.precalculateDijkstra(startNode, this::setProgress);
-		  dijkstraMutex.release();
 
-	    return 100;
-	  }
-	  
-	  @Override
+	@Override
+	protected Integer doInBackground() throws Exception {
+
+		try {
+			Thread.currentThread().setName("DijkstraWorker " + this.dijkstra.getName());
+			dijkstra.precalculateDijkstra(startNode, this::setProgress);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			dijkstraMutex.release();
+		}
+
+		return 100;
+	}
+
+	@Override
 	protected void process(List<String> chunks) {
 		// TODO Auto-generated method stub
 		super.process(chunks);
 	}
-
 
 }

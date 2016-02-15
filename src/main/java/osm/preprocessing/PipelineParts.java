@@ -3,7 +3,6 @@ package osm.preprocessing;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiConsumer;
 
 import osm.preprocessing.pipeline.Analyzer;
 import osm.preprocessing.pipeline.CreateDataArray;
