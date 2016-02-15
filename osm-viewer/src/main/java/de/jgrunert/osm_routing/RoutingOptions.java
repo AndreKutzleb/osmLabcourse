@@ -19,7 +19,7 @@ public class RoutingOptions {
 	}
 
 	public void addRoutingOption(Dijkstra strategy, JProgressBar progress) {
-		routingOptions.put(strategy.getName(), strategy);
+		this.routingOptions.put(strategy.getName(), strategy);
 		this.progress.put(strategy.getName(), progress);
 	}
 	

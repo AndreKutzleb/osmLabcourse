@@ -55,17 +55,14 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
     /**
      * Constructs the {@code Demo}.
+     * @param options 
      * @throws IOException 
      */
-    public OsmRoutingMain() throws IOException {
+    public OsmRoutingMain(RoutingOptions options) throws IOException {
         super("JMapViewer Demo");
         setSize(400, 400);
         
-        RoutingOptions options = initializeRouting(); 
-        if(options == null) {
-        	System.err.println("Failed to load, exiting.");
-        	System.exit(1);
-        }
+      
         
         String cacheFolder = "JMapViewerCache";
         boolean doCaching = true;
@@ -139,7 +136,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         add(treeMap, BorderLayout.CENTER);
 
         // add progressbars
-        options.getProgress().values().forEach(this::add);
+        options.getProgress().values().forEach(helpPanel::add);
         
         map().addMouseListener(new MouseAdapter() {
             @Override
@@ -165,7 +162,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         });
     }
 
-    private RoutingOptions initializeRouting() throws IOException {
+    private static RoutingOptions initializeRouting() throws IOException {
     	Graph graph = null;
 
 		File dataFolder = new File("data");
@@ -207,12 +204,12 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
 		RoutingOptions options = new RoutingOptions(graph);
 		
-		for(TravelType type : new TravelType[]{TravelType.CAR_FASTEST, TravelType.CAR_FASTEST_FF}) {
+		for(TravelType type : new TravelType[]{TravelType.CAR_SHORTEST_FF}) {
 			JProgressBar progress = new JProgressBar();
 			progress.setVisible(false);
 			progress.setStringPainted(true);
 			
-			options.addRoutingOption(new Dijkstra(graph, TravelType.CAR_SHORTEST,progress), progress);
+			options.addRoutingOption(new Dijkstra(graph, type ,progress), progress);
 		}
         
 		return options;
@@ -227,7 +224,14 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
      * @throws IOException 
      */
     public static void main(String[] args) throws IOException {
-        new OsmRoutingMain().setVisible(true);
+    	  RoutingOptions options = initializeRouting(); 
+          if(options == null) {
+          	System.err.println("Failed to load, exiting.");
+          	System.exit(1);
+          }
+          
+  
+        new OsmRoutingMain(options).setVisible(true);
     }
 
     private void updateZoomParameters() {
