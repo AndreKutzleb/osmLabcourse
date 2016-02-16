@@ -1,4 +1,4 @@
-package de.jgrunert.osm_routing;
+package de.andre_kutzleb.osm_routing;
 
 import java.util.HashMap;
 import java.util.Map;

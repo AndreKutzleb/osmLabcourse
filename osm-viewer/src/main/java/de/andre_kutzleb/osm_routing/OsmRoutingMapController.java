@@ -1,5 +1,5 @@
 // License: GPL. For details, see Readme.txt file.
-package de.jgrunert.osm_routing;
+package de.andre_kutzleb.osm_routing;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -12,10 +12,13 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
@@ -167,7 +170,6 @@ public class OsmRoutingMapController extends JMapController implements
 			});
 
 			double avgPercent = localWorkers.values().stream().mapToInt(DijkstraWorker::getProgress).average().getAsDouble();
-	
 			// draw temporary direct air line
 			if (stopDot != null) {
 				drawTempLine(startNode, stopDotNode, (float) avgPercent);
@@ -208,7 +210,7 @@ public class OsmRoutingMapController extends JMapController implements
 		// Stroke dashed = new BasicStroke(2.0f, BasicStroke.CAP_BUTT,
 		// BasicStroke.JOIN_MITER, 10.0f, new float[]{5f}, 0.0f);
 		//
-		int perc = Math.round(percent * 100);
+		int perc = Math.round(percent);
 		routPoly.setName(perc + "%");
 		routPoly.setColor(Color.DARK_GRAY);
 		map.addMapPolygon(routPoly);
@@ -247,6 +249,8 @@ public class OsmRoutingMapController extends JMapController implements
 		
 		IntList path = route.path;
 
+		double randPos = Math.random();
+		int stringPosition = (int) (route.path.size() * randPos);
 		for (int i = 1; i < path.size(); i++) {
 
 			int from = path.getInt(i - 1);
@@ -262,9 +266,10 @@ public class OsmRoutingMapController extends JMapController implements
 //				routPoly.setName(""+route.edgeSpeeds.getByte(i-1));
 //			}
 			// distribute name to random position
-			if(i == route.path.size() / 2) {
+			if(i == stringPosition) {
 				String name = route.travelType.name + ": ";
-				name+= String.format("%.4f", route.totalDistance());
+				name+= String.format("%.1fkm", route.totalDistance()/1000f);
+				name+= " (" + convertSecondToHHMMString((int) route.timeTakenInSeconds())+")"; 
 				routPoly.setName(name);
 			}
 			
@@ -272,6 +277,22 @@ public class OsmRoutingMapController extends JMapController implements
 
 		}
 	}
+	
+
+
+private String convertSecondToHHMMString(int secondtTime)
+{
+  TimeZone tz = TimeZone.getTimeZone("UTC");
+  String format = (secondtTime/60) >= 60 ?  "HH'h' mm'm'" : "mm'm'"; 
+  SimpleDateFormat df = new SimpleDateFormat(format);
+  df.setTimeZone(tz);
+  String time = df.format(new Date(secondtTime*1000L));
+
+  return time;
+
+}
+
+
 
 	@Override
 	public void mousePressed(MouseEvent e) {

@@ -35,8 +35,8 @@ import org.openstreetmap.gui.jmapviewer.interfaces.TileLoaderListener;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
 
-import de.jgrunert.osm_routing.OsmRoutingMapController;
-import de.jgrunert.osm_routing.RoutingOptions;
+import de.andre_kutzleb.osm_routing.OsmRoutingMapController;
+import de.andre_kutzleb.osm_routing.RoutingOptions;
 
 /**
  * Provides a simple panel that displays pre-rendered map tiles loaded from the

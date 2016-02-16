@@ -149,7 +149,7 @@ public class Graph {
 
 	
 	public FloatPoint pointAtPercent(int fromNode, int toNode, float percent) {
-		
+		percent/= 100f;
 		float fromLat = latOf(fromNode);
 		float fromLon = lonOf(fromNode);
 		

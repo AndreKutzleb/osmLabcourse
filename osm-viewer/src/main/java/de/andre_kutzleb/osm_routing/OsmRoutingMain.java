@@ -1,5 +1,5 @@
 // License: GPL. For details, see Readme.txt file.
-package de.jgrunert.osm_routing;
+package de.andre_kutzleb.osm_routing;
 
 import java.awt.BorderLayout;
 import java.awt.Cursor;
@@ -162,7 +162,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         });
     }
 
-    private static RoutingOptions initializeRouting() throws IOException {
+    private static RoutingOptions initializeRouting(TravelType[] travelTypes) throws IOException {
     	Graph graph = null;
 
 		File dataFolder = new File("data");
@@ -204,7 +204,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
 
 		RoutingOptions options = new RoutingOptions(graph);
 		
-		for(TravelType type : new TravelType[]{TravelType.CAR_SHORTEST_FF}) {
+		for(TravelType type : travelTypes) {
 			JProgressBar progress = new JProgressBar();
 			progress.setVisible(false);
 			progress.setStringPainted(true);
@@ -224,7 +224,25 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
      * @throws IOException 
      */
     public static void main(String[] args) throws IOException {
-    	  RoutingOptions options = initializeRouting(); 
+    	
+    	TravelType[] types = new TravelType[] {TravelType.CAR_SHORTEST, TravelType.CAR_FASTEST, TravelType.PEDESTRIAN};
+    //	types = new TravelType[] {TravelType.CAR_SHORTEST_FF, TravelType.CAR_FASTEST_FF, TravelType.PEDESTRIAN_FF};
+
+    	  	JFrame frame = new JFrame("OSM viewer");
+    	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    	    final JProgressBar aJProgressBar = new JProgressBar(JProgressBar.HORIZONTAL);
+    	    aJProgressBar.setString("Loading OSM data...");
+    	    aJProgressBar.setStringPainted(true);
+    	    aJProgressBar.setIndeterminate(true);
+
+    	    frame.add(aJProgressBar, BorderLayout.NORTH);
+    	    frame.setSize(300, 60);
+    	    frame.setLocationRelativeTo(null);
+    	    frame.setVisible(true);
+    	
+    	
+    	  RoutingOptions options = initializeRouting(types); 
+    	  frame.dispose();
           if(options == null) {
           	System.err.println("Failed to load, exiting.");
           	System.exit(1);

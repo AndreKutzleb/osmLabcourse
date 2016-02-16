@@ -22,7 +22,7 @@ import org.openstreetmap.gui.jmapviewer.checkBoxTree.CheckBoxNodePanel;
 import org.openstreetmap.gui.jmapviewer.checkBoxTree.CheckBoxTree;
 import org.openstreetmap.gui.jmapviewer.interfaces.MapObject;
 
-import de.jgrunert.osm_routing.RoutingOptions;
+import de.andre_kutzleb.osm_routing.RoutingOptions;
 
 /**
  * Tree of layers for JMapViewer component

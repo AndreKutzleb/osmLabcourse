@@ -45,9 +45,9 @@ public class Dijkstra {
 
 
 	private final Graph graph;
-	private final int[] refArray;
-	private final int[] successor;
-	private final boolean[] visited;
+	public final int[] refArray;
+	public final int[] successor;
+	public final boolean[] visited;
 	public final TravelType travelType;
 	private int visitedCount = 0;
 	private final IntHeapIndirectPriorityQueue queue;
@@ -59,6 +59,10 @@ public class Dijkstra {
 		queue.clear();
 	}
 
+	public Graph getGraph() {
+		return graph;
+	}
+	
 	int latestSource = 0;
 	private int fromNode = -1;
 	public volatile long resetDuration;
@@ -80,7 +84,7 @@ public class Dijkstra {
 		IntList path = new IntArrayList();
 		// no way possible.
 		if (!visited[toNode]) {
-			return Route.noPath(travelType);
+			return Route.noPath(this,travelType);
 		}
 
 		int current = toNode;
@@ -99,7 +103,7 @@ public class Dijkstra {
 
 		calculateAdditionalInfo(path, edgeSpeeds, distances);
 
-		return new Route(path, edgeSpeeds, distances, travelType);
+		return new Route(this,path, edgeSpeeds, distances, travelType);
 	}
 
 	private void calculateAdditionalInfo(IntList path, ByteList edgeSpeeds,
@@ -113,7 +117,7 @@ public class Dijkstra {
 			byte decodeSpeed = ByteUtils.decodeSpeed(edgeMetaData);
 			edgeSpeeds.add(decodeSpeed);
 
-			float distance = graph.distance(to, from);
+			float distance = determineDistance(to, from);
 			distances.add(distance);
 		}
 	}
@@ -197,18 +201,18 @@ public class Dijkstra {
 					while(!visited[toSkip] && graph.neighbourCount(toSkip) == 2) {
 						visitedCount++;
 						visited[toSkip] = true;
-						refArray[toSkip] = 0; // TODO
+						refArray[toSkip] = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip);
 						successor[toSkip] = alreadyVisited;
 						
 						int nextToVisit = graph.neighbourOf(toSkip, alreadyVisited);
 						alreadyVisited = toSkip;
 						toSkip = nextToVisit;
 					}
-					if(!visited[toSkip]) {
-						refArray[toSkip] = 0; // TODO
+					if(!visited[toSkip] && !queue.contains(toSkip)) {
+						refArray[toSkip] = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip);
 						successor[toSkip] = alreadyVisited;
-						queue.enqueue(neighbour);
-					} else {
+						queue.enqueue(toSkip);
+					} else if (queue.contains(toSkip)){
 						// need to update if better
 						int distanceToSkip = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip);
 						boolean improvement = distanceToSkip < refArray[toSkip];
