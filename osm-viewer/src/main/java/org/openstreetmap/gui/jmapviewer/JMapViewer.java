@@ -1,6 +1,7 @@
 // License: GPL. For details, see Readme.txt file.
 package org.openstreetmap.gui.jmapviewer;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -13,9 +14,11 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map.Entry;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
@@ -143,6 +146,21 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         setMinimumSize(new Dimension(tileSource.getTileSize(), tileSource.getTileSize()));
         setPreferredSize(new Dimension(400, 400));
         setDisplayPosition(new Coordinate(50, 9), 3);
+        
+        int xPos = 50;
+        int yPos = 20;
+        for (Entry<String,JLabel> entry : options.getRoutingInformation().entrySet()) {
+        	JLabel l = entry.getValue();
+        	l.setBounds(xPos, yPos, 200, 20);
+        	l.setBackground(options.getRoutingOptions().get(entry.getKey()).travelType.color);
+        	l.setOpaque(true);
+        	l.setForeground(Color.WHITE);
+        	
+        	add(l);
+        	yPos+=20;
+        }
+
+
     }
 
     @Override
@@ -182,7 +200,9 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         });
         zoomInButton.setFocusable(false);
         add(zoomInButton);
-        try {
+        
+        
+              try {
             ImageIcon icon = new ImageIcon(JMapViewer.class.getResource("images/minus.png"));
             zoomOutButton = new JButton(icon);
         } catch (Exception e) {

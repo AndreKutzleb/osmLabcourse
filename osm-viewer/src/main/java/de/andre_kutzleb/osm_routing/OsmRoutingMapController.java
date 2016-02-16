@@ -270,7 +270,8 @@ public class OsmRoutingMapController extends JMapController implements
 				String name = route.travelType.name + ": ";
 				name+= String.format("%.1fkm", route.totalDistance()/1000f);
 				name+= " (" + convertSecondToHHMMString((int) route.timeTakenInSeconds())+")"; 
-				routPoly.setName(name);
+			//	routPoly.setName(name);
+				options.getRoutingInformation().get(route.travelType.name).setText(name);
 			}
 			
 			map.addMapPolygon(routPoly);
