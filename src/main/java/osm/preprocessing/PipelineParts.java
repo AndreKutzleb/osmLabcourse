@@ -24,6 +24,10 @@ public class PipelineParts {
 		public final String OFFSET_ARRAY;
 		public final String DATA_ARRAY_SIZE;
 		public final String DATA_ARRAY;
+		public final String AGGREGATE_OFFSET_ARRAY_RAW;
+		public final String AGGREGATE_DATA_ARRAY_SIZE;
+		public final String AGGREGATE_DATA_ARRAY;
+		public final String AGGREGATE_OFFSET_ARRAY;
 		
 		public PipelinePaths(String sourceFilePath) {
 			
@@ -38,15 +42,19 @@ public class PipelineParts {
 			String base = dataFolderPath + File.separator;
 			
 			SOURCE_FILE = sourceFilePath;
-			HIGHWAY_NODES_RAW = 		base + "highwaynodes_raw.data";
-			HIGHWAY_NODES_RAW_SIZE = 	base + "highwaynodes_raw.size";
-			HIGHWAY_NODES_SORTED =	 	base + "highwaynodes_sorted.data";
-			HIGHWAY_NODES_SORTED_SIZE = base + "highwaynodes_sorted.size";
-			OFFSET_ARRAY_RAW = 			base + "offsetarray_raw.data";
-			OFFSET_ARRAY = 				base + "offsetarray.data";
-			DATA_ARRAY_SIZE = 			base + "dataarray.size";
-			DATA_ARRAY = 				base + "dataarray.data";
-
+			HIGHWAY_NODES_RAW = 		 base + "highwaynodes_raw.data";
+			HIGHWAY_NODES_RAW_SIZE = 	 base + "highwaynodes_raw.size";
+			HIGHWAY_NODES_SORTED =	 	 base + "highwaynodes_sorted.data";
+			HIGHWAY_NODES_SORTED_SIZE =  base + "highwaynodes_sorted.size";
+			OFFSET_ARRAY_RAW = 			 base + "offsetarray_raw.data";
+			OFFSET_ARRAY = 				 base + "offsetarray.data";
+			DATA_ARRAY_SIZE = 			 base + "dataarray.size";
+			DATA_ARRAY = 				 base + "dataarray.data";
+			AGGREGATE_OFFSET_ARRAY_RAW = base + "aggregate_offsetarray_raw.data";
+			AGGREGATE_DATA_ARRAY_SIZE =  base + "aggregate_dataarray.size";
+			AGGREGATE_OFFSET_ARRAY = 	 base + "aggregate_offsetarray.data";
+			AGGREGATE_DATA_ARRAY =		 base + "aggregate_dataarray.data";
+			
 		}
 	}
 	

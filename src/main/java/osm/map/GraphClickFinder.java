@@ -27,8 +27,8 @@ public class GraphClickFinder {
 		this.graph = graph;
 	}
 
-	public int findClosestNodeTo(float toLat, float toLon, boolean deterministic) {
-		if(deterministic) {
+	public int findClosestNodeTo(float toLat, float toLon) {
+//		if(deterministic) {
 //			long before = System.currentTimeMillis();
 //			int found1 = findDeterministic(toLat, toLon);
 //			long middle = System.currentTimeMillis();
@@ -44,16 +44,16 @@ public class GraphClickFinder {
 //				throw new IllegalStateException();
 //			}
 			return found2;
-
-		} else {
-			
-		int closestStartNode = findClosestStartNode(toLat,toLon);
-		if(graph.distanceToCoordinates(closestStartNode, toLat, toLon) > CANNOT_LOOK_FOR_NODE_LIMIT) {
-			System.err.println("Returning closestStartNode");
-			return closestStartNode;
-		}
-		return findClosestNodeDijkstra(closestStartNode, toLat, toLon);
-		}
+//
+//		} else {
+//			
+//		int closestStartNode = findClosestStartNode(toLat,toLon);
+//		if(graph.distanceToCoordinates(closestStartNode, toLat, toLon) > CANNOT_LOOK_FOR_NODE_LIMIT) {
+//			System.err.println("Returning closestStartNode");
+//			return closestStartNode;
+//		}
+//		return findClosestNodeDijkstra(closestStartNode, toLat, toLon);
+//		}
 	}
 	
 	private int findDeterministic(float toLat, float toLon) {
@@ -128,67 +128,67 @@ public class GraphClickFinder {
 	}
 	
 	
-	public int findClosestNodeDijkstra(int fromNode, float toLat, float toLon) {
-
-		float distanceFromClick = graph.distanceToCoordinates(fromNode, toLat, toLon);
-
-		float shortestFoundDistance = Integer.MAX_VALUE;
-		int shortestFoundDistanceNode = 0;
-
-		// evtl bloomfilter
-		final IntSet visited = new IntOpenHashSet();
-		final Int2IntMap distanceToStart = new Int2IntAVLTreeMap();
-		// final Int2IntMap successor = new Int2IntAVLTreeMap();
-		distanceToStart.defaultReturnValue(-1);
-
-		IntHeapPriorityQueue queue = new IntHeapPriorityQueue(
-				getDijkstraComparator(distanceToStart));
-
-		queue.enqueue(fromNode);
-		distanceToStart.put(fromNode, 0);
-
-		while (!queue.isEmpty()) {
-			if (queue.size() % 1000 == 0) {
-				System.out.println(queue.size());
-				System.out.println("queueSize " + visited.size());
-			}
-			int next = queue.dequeueInt();
-			visited.add(next);
-			int distanceToVisited = distanceToStart.get(next);
-
-			float geoDistToClick = graph.distanceToCoordinates(next, toLat, toLon);
-			if (geoDistToClick < shortestFoundDistance) {
-				shortestFoundDistance = geoDistToClick;
-				shortestFoundDistanceNode = next;
-			}
-
-			graph.forEachNeighbourOf(
-					next,
-					(neighbour) -> {
-						if (!visited.contains(neighbour)
-								&& graph.distanceToCoordinates(neighbour, toLat, toLon) < (1.1 * distanceFromClick)) {
-							// See if we can get there faster
-							int distanceToStartOfNeighbour = distanceToStart
-									.get(neighbour);
-							int distanceFromNext = distanceToVisited + 1;
-
-							if (distanceFromNext < distanceToStartOfNeighbour
-									|| distanceToStartOfNeighbour == -1) {
-								// can get there faster
-								distanceToStart
-										.put(neighbour, distanceFromNext);
-								// successor.put(neighbour, next);
-							}
-							// may cause multiple instances of ways to
-							// same node, but closest way will come first
-							queue.enqueue(neighbour);
-						}
-					});
-
-		}
-
-		return shortestFoundDistanceNode;
-	}
+//	public int findClosestNodeDijkstra(int fromNode, float toLat, float toLon) {
+//
+//		float distanceFromClick = graph.distanceToCoordinates(fromNode, toLat, toLon);
+//
+//		float shortestFoundDistance = Integer.MAX_VALUE;
+//		int shortestFoundDistanceNode = 0;
+//
+//		// evtl bloomfilter
+//		final IntSet visited = new IntOpenHashSet();
+//		final Int2IntMap distanceToStart = new Int2IntAVLTreeMap();
+//		// final Int2IntMap successor = new Int2IntAVLTreeMap();
+//		distanceToStart.defaultReturnValue(-1);
+//
+//		IntHeapPriorityQueue queue = new IntHeapPriorityQueue(
+//				getDijkstraComparator(distanceToStart));
+//
+//		queue.enqueue(fromNode);
+//		distanceToStart.put(fromNode, 0);
+//
+//		while (!queue.isEmpty()) {
+//			if (queue.size() % 1000 == 0) {
+//				System.out.println(queue.size());
+//				System.out.println("queueSize " + visited.size());
+//			}
+//			int next = queue.dequeueInt();
+//			visited.add(next);
+//			int distanceToVisited = distanceToStart.get(next);
+//
+//			float geoDistToClick = graph.distanceToCoordinates(next, toLat, toLon);
+//			if (geoDistToClick < shortestFoundDistance) {
+//				shortestFoundDistance = geoDistToClick;
+//				shortestFoundDistanceNode = next;
+//			}
+//
+//			graph.forEachNeighbourOf(
+//					next,
+//					(neighbour) -> {
+//						if (!visited.contains(neighbour)
+//								&& graph.distanceToCoordinates(neighbour, toLat, toLon) < (1.1 * distanceFromClick)) {
+//							// See if we can get there faster
+//							int distanceToStartOfNeighbour = distanceToStart
+//									.get(neighbour);
+//							int distanceFromNext = distanceToVisited + 1;
+//
+//							if (distanceFromNext < distanceToStartOfNeighbour
+//									|| distanceToStartOfNeighbour == -1) {
+//								// can get there faster
+//								distanceToStart
+//										.put(neighbour, distanceFromNext);
+//								// successor.put(neighbour, next);
+//							}
+//							// may cause multiple instances of ways to
+//							// same node, but closest way will come first
+//							queue.enqueue(neighbour);
+//						}
+//					});
+//
+//		}
+//
+//		return shortestFoundDistanceNode;
+//	}
 
 	private int findClosestStartNode(float toLat, float toLon) {
 		int minDistNode = 0;

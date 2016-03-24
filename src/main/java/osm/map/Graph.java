@@ -1,10 +1,14 @@
 package osm.map;
 
+import it.unimi.dsi.fastutil.ints.IntList;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntConsumer;
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 import osm.preprocessing.PipelineParts.PipelinePaths;
 import osmlab.sink.ByteUtils;
@@ -27,6 +31,11 @@ public class Graph {
 	
 	final int nodeCount;
 
+	
+	final int[] aggregateOffsets;
+	
+	final int[] aggregateData;
+	
 	/**
 	 * Loads the graph datastructure from disc.
 	 * 
@@ -40,17 +49,25 @@ public class Graph {
 
 		PipelinePaths paths = new PipelinePaths(sourceFilePath);
 
+		int[] aggregateData = SerializationUtils
+				.deserialize(new FileInputStream(paths.AGGREGATE_DATA_ARRAY));
+		int[] aggregateOffsets = SerializationUtils
+				.deserialize(new FileInputStream(paths.AGGREGATE_OFFSET_ARRAY));
+
 		int[] data = SerializationUtils.deserialize(new FileInputStream(
 				paths.DATA_ARRAY));
 		int[] offsets = SerializationUtils.deserialize(new FileInputStream(
 				paths.OFFSET_ARRAY));
 
-		return new Graph(data, offsets);
+		return new Graph(data, offsets, aggregateData, aggregateOffsets);
+		
 	}
 
-	public Graph(int[] data, int[] offsets) {
+	public Graph(int[] data, int[] offsets, int[] aggregateData, int[] aggregateOffsets) {
 		this.data = data;
 		this.offsets = offsets;
+		this.aggregateData = aggregateData;
+		this.aggregateOffsets = aggregateOffsets;
 		this.nodeCount = offsets.length;
 	}
 
@@ -111,12 +128,7 @@ public class Graph {
 	
 	public float distance(int nodeA, int nodeB) {
 		int offset = offsets[nodeA] + FormatConstants.CONSTANT_NODESIZE; // skip lat and lon
-		int upperLimit;
-		if (nodeA + 1 == getNodeCount()) {
-			upperLimit = getNodeCount();
-		} else {
-			upperLimit = offsets[nodeA + 1];
-		}
+		int upperLimit = getUpperLimit(nodeA);
 		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
 			int neighbour = ByteUtils.decodeNeighbour(data[i]);
 			if(neighbour == nodeB) {
@@ -131,12 +143,7 @@ public class Graph {
 	
 	public int edgeMetaData(int from, int to) {
 		int offset = offsets[from] + 2; // skip lat and lon
-		int upperLimit;
-		if (from + 1 == getNodeCount()) {
-			upperLimit = getNodeCount();
-		} else {
-			upperLimit = offsets[from + 1];
-		}
+		int upperLimit = getUpperLimit(from);
 		for (int i = offset; i < upperLimit; i++) {
 			int neigbour = ByteUtils.decodeNeighbour(data[i]);
 			if(neigbour == to) {
@@ -203,12 +210,8 @@ public class Graph {
 
 	public void forEachNeighbourOf(int node, IntConsumer action) {
 		int offset = offsets[node] + 2; // skip lat and lon
-		int upperLimit;
-		if (node + 1 == getNodeCount()) {
-			upperLimit = getNodeCount();
-		} else {
-			upperLimit = offsets[node + 1];
-		}
+		int upperLimit = getUpperLimit(node);
+		
 		for (int i = offset; i < upperLimit; i+= FormatConstants.CONSTANT_EDGESIZE) {
 			int neigbour = ByteUtils.decodeNeighbour(data[i]);
 			action.accept(neigbour);
@@ -226,24 +229,24 @@ public class Graph {
 	}
 
 	public int neighbourCount(int node) {
-		int offset = offsets[node] + 2; // skip lat and lon
-		int upperLimit;
-		if (node + 1 == getNodeCount()) {
-			upperLimit = getNodeCount();
-		} else {
-			upperLimit = offsets[node + 1];
+		return neighbourCountInternal(node, offsets);
 		}
-		return (upperLimit - offset) / 2;
+	
+	public int neighbourCountAggregate(int node) {
+		return neighbourCountInternal(node, aggregateOffsets);
+		}
+	
+	private int neighbourCountInternal(int node, int[] offsets) {
+		int offset = offsets[node] + 2; // skip lat and lon
+		int upperLimit = getUpperLimit(node);
+		return (upperLimit - offset) / FormatConstants.CONSTANT_EDGESIZE;
 	}
+
 
 	public void forEachEdgeOf(int node, IntBiConsumer action) {
 		int offset = offsets[node] + 2; // skip lat and lon
-		int upperLimit;
-		if (node + 1 == getNodeCount()) {
-			upperLimit = getNodeCount();
-		} else {
-			upperLimit = offsets[node + 1];
-		}
+		int upperLimit = getUpperLimit(node);
+		
 		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
 			int neigbour = ByteUtils.decodeNeighbour(data[i]);
 			action.accept(node, neigbour);
@@ -262,12 +265,8 @@ public class Graph {
 
 	public int neighbourOf(int node, int notThisNeighbour) {
 		int offset = offsets[node] + 2; // skip lat and lon
-		int upperLimit;
-		if (node + 1 == getNodeCount()) {
-			upperLimit = getNodeCount();
-		} else {
-			upperLimit = offsets[node + 1];
-		}
+		int upperLimit = getUpperLimit(node);
+		
 		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
 			int neighbour = ByteUtils.decodeNeighbour(data[i]);
 			if(neighbour != notThisNeighbour) {
@@ -279,16 +278,58 @@ public class Graph {
 
 	public void forEachEdge(int node, IntConsumer action) {
 		int offset = offsets[node] + FormatConstants.CONSTANT_NODESIZE; // skip lat and lon
-		int upperLimit;
-		if (node + 1 == getNodeCount()) {
-			upperLimit = getNodeCount();
-		} else {
-			upperLimit = offsets[node + 1];
-		}
+		int upperLimit = getUpperLimit(node);
+		
 		for (int i = offset; i < upperLimit; i+=FormatConstants.CONSTANT_EDGESIZE) {
 			int neighbour = ByteUtils.decodeNeighbour(data[i]);
 			action.accept(neighbour);
 		}		
+	}
+	
+	private int getUpperLimit(int node) {
+		if (node + 1 == getNodeCount()) {
+			return getNodeCount();
+		} else {
+			return offsets[node + 1];
+		}
+	}
+	
+	private int getUpperLimitAggregate(int node) {
+		if (node + 1 == getNodeCount()) {
+			return getNodeCount();
+		} else {
+			return aggregateOffsets[node + 1];
+		}
+	}
+
+	/**
+	 * Returns two distinct nodes if the given node is not included in the aggregated nodes.  These nodes are the aggregate nodes closest to this node.
+	 * if the given node is an aggregate node already, then returns the pair with the same number.
+	 */
+	public Pair<Integer, Integer> findClosestAggregateNodes (int node){
+		int neighbourCount = neighbourCountAggregate(node);
+		// if neighbourcount == 0 then this node is not part of aggregate datastructure
+		Pair<Integer, Integer> p;
+		AtomicInteger left = new AtomicInteger();
+		AtomicInteger right = new AtomicInteger();
+
+		if(neighbourCount == 0) {
+			forEachNeighbourOf(node, neighbour -> {
+				if(left.get() == 0) {
+					left.set(neighbour);
+				} else {
+					right.set(neighbour);
+				}
+			});
+			
+			
+			
+			// TODO FIXME find out if aggregate can destroy T-section
+			
+			
+		} else {
+			return Pair.of(node, node);
+		}
 	}
 
 

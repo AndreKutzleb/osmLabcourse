@@ -107,7 +107,7 @@ public class OsmRoutingMapController extends JMapController implements
 			ICoordinate clickPt = map.getPosition(e.getPoint());
 
 			int clickNextPt = new GraphClickFinder(graph).findClosestNodeTo(
-					(float) clickPt.getLat(), (float) clickPt.getLon(),true);
+					(float) clickPt.getLat(), (float) clickPt.getLon());
 
 
 			
@@ -229,9 +229,12 @@ public class OsmRoutingMapController extends JMapController implements
 			return false;
 		}
 		options.getRoutingOptions().values().forEach(d -> {
+			
+			System.out.println(d.travelType.name + " path length:   " + d.getPath(destinationNode).path.size());
 			System.out.println(d.travelType.name + " reset    time: " + d.resetDuration + "ms");
 			System.out.println(d.travelType.name + " dijkstra time: " + d.dijkstraDuration + "ms");
-			});
+			System.out.println();	
+		});
 		
 		
 		List<Route> routes = options.getRoutingOptions().values().stream().map(dijkstra -> dijkstra.getPath(destinationNode)).collect(Collectors.toList());
