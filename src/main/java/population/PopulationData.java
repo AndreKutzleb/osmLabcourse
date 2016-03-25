@@ -139,7 +139,7 @@ public class PopulationData {
 	}
 	
 	private boolean hasDataAt(int row, int col) {
-		return Math.abs(popData[row][col] - NODATA_value) < 0.01;
+		return Math.abs(popData[nrows-row][col] - NODATA_value) > 0.01;
 	}
 	
 	public PopulationInfo closestDataForCoordinate(float lat, float lon) {
@@ -184,10 +184,10 @@ public class PopulationData {
 		float lowerLeftCoordLon = (float) (xllcorner + (lowerLeftCol * cellsize)); 
 		
 		
-		PopulationPoint leftLower = new PopulationPoint(lowerLeftCoordLat, lowerLeftCoordLon,popData[lowerLeftRow][lowerLeftCol]);
-		PopulationPoint leftUpper = new PopulationPoint(lowerLeftCoordLat + cellsize, lowerLeftCoordLon,popData[lowerLeftRow+1][lowerLeftCol]);
-		PopulationPoint rightUpper = new PopulationPoint(lowerLeftCoordLat + cellsize, lowerLeftCoordLon+ cellsize,popData[lowerLeftRow+1][lowerLeftCol+1]);
-		PopulationPoint rightLower = new PopulationPoint(lowerLeftCoordLat, lowerLeftCoordLon + cellsize ,popData[lowerLeftRow][lowerLeftCol+1]);
+		PopulationPoint leftLower = new PopulationPoint(lowerLeftCoordLat, lowerLeftCoordLon,popData[nrows-lowerLeftRow][lowerLeftCol]);
+		PopulationPoint leftUpper = new PopulationPoint(lowerLeftCoordLat + cellsize, lowerLeftCoordLon,popData[nrows-lowerLeftRow+1][lowerLeftCol]);
+		PopulationPoint rightUpper = new PopulationPoint(lowerLeftCoordLat + cellsize, lowerLeftCoordLon+ cellsize,popData[nrows-lowerLeftRow+1][lowerLeftCol+1]);
+		PopulationPoint rightLower = new PopulationPoint(lowerLeftCoordLat, lowerLeftCoordLon + cellsize ,popData[nrows-lowerLeftRow][lowerLeftCol+1]);
 		
 		PopulationPoint pointOfInterest = interpolatePopulation(leftUpper, rightUpper, leftLower, rightLower, lat, lon);
 		
@@ -230,6 +230,9 @@ public class PopulationData {
 			PopulationPoint rightLower, float lat, float lon) {
 		float cellSize = (float) (rightUpper.getY() - leftUpper.getY());
 		
+		float savLat = lat;
+		float savLon = lon;
+		
 		lat = (float) (lat - leftLower.getX());
 		lon = (float) (lon - leftLower.getY());
 		lat/= cellSize;
@@ -237,7 +240,7 @@ public class PopulationData {
 		double interpolated = (leftLower.populationDensity*(1-lat))*(1-lon)+(leftUpper.populationDensity*lat*(1-lon)) + (rightLower.populationDensity*(1-lat)*lon)+(rightUpper.populationDensity*lat*lon);
 		
 		
-		return new PopulationPoint(lat, lon, interpolated);
+		return new PopulationPoint(savLat, savLon, interpolated);
 	}
 
 //	public static PopulationPoint interpolatePopulation(float lat, float lon, PopulationPoint... points) {

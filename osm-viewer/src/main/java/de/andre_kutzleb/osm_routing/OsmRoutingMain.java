@@ -177,7 +177,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
                 				map().removeMapMarker(dots[i]);
                 			}
                 			PopulationPoint pp = info.getPopulationPoint(i);
-                			MapMarkerDot ppd = new MapMarkerDot(Math.round(pp.getX())+", " + Math.round(pp.getY()),new Coordinate(pp.getX(), pp.getY()));
+                			MapMarkerDot ppd = new MapMarkerDot(Math.round(pp.getY())+", " + Math.round(pp.getX()),new Coordinate(pp.getX(), pp.getY()));
                 			map().addMapMarker(ppd);
                 			dots[i] = ppd;
                 		}
