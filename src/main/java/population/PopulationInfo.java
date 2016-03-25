@@ -39,6 +39,17 @@ public class PopulationInfo {
 	public PopulationPoint getPointOfInterest() {
 		return pointOfInterest;
 	}
+
+	public PopulationPoint getPopulationPoint(int i) {
+		switch(i) {
+			case 0: return getLeftUpper();
+			case 1: return getRightUpper();
+			case 2: return getLeftLower();
+			case 3: return getRightLower();
+			case 4: return getPointOfInterest();
+			default: throw new IllegalArgumentException();
+		}
+	}
 	
 	
 

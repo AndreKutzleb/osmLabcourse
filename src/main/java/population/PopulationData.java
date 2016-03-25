@@ -145,9 +145,11 @@ public class PopulationData {
 	public PopulationInfo closestDataForCoordinate(float lat, float lon) {
 		// exclude anything to the left / below leftmost, lowest data point
 		if(lat < yllcorner) {
+			System.err.printf("lat %f smaller than yllcorner %d\n",lat,yllcorner);
 			return null;
 		}
 		if(lon < xllcorner) {
+			System.err.printf("lon %f smaller than xllcorner %d\n",lon,xllcorner);
 			return null;
 		}
 		float latDistance = lat - yllcorner;
@@ -158,9 +160,11 @@ public class PopulationData {
 		
 		// exclude anything to the right / uppermost data point.
 		if(Math.ceil(latGridSteps) >=  nrows) {
+			System.err.printf("latgridsteps %d exceeds available grids  %d (too high/ too right)\n",(int)Math.ceil(latGridSteps),nrows);
 			return null;
 		}
 		if(Math.ceil(lonGridSteps) >=  ncols) {
+			System.err.printf("longridsteps %d exceeds available grids  %d (too high/ too right)\n",(int)Math.ceil(lonGridSteps),ncols);
 			return null;
 		}
 		// now we excluded any Index-out-of-bounds-problems.
@@ -172,6 +176,7 @@ public class PopulationData {
 		boolean allRequiredDataPresent = hasDataAt(lowerLeftRow, lowerLeftCol) && hasDataAt(lowerLeftRow+1, lowerLeftCol) && hasDataAt(lowerLeftRow+1, lowerLeftCol+1) && hasDataAt(lowerLeftRow, lowerLeftCol+1);
 		
 		if(!allRequiredDataPresent) {
+			System.err.println("Not all data present");
 			return null;
 		}
 		// lat lon of points in data grid

@@ -100,6 +100,7 @@ public class OsmRoutingMapController extends JMapController implements
 	MapMarkerDot startDot = null;
 	MapMarkerDot stopDot = null;
 	int stopDotNode = 0;
+	
 
 	@Override
 	public void mouseClicked(MouseEvent e) {

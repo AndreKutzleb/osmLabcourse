@@ -24,8 +24,10 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.filechooser.FileFilter;
 
+import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.JMapViewerTree;
+import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.OsmTileLoader;
 import org.openstreetmap.gui.jmapviewer.events.JMVCommandEvent;
 import org.openstreetmap.gui.jmapviewer.interfaces.JMapViewerEventListener;
@@ -41,6 +43,7 @@ import osm.map.Graph;
 import osmlab.OSMFileConverter;
 import population.PopulationData;
 import population.PopulationInfo;
+import population.PopulationPoint;
 
 /**
  * Demonstrates the usage of {@link JMapViewer}
@@ -151,6 +154,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         
     	final PopulationData populationData = PopulationData.parseFromFile("deuds00ag.asc");
 
+		MapMarkerDot[] dots = new MapMarkerDot[5];
 
         map().addMouseMotionListener(new MouseAdapter() {
             @Override
@@ -167,8 +171,16 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
                 	if(info == null) {
                 		map().setToolTipText(map().getPosition(p).toString());                		
                 	} else {
-                		System.out.println("popInfo = " + info.getPointOfInterest().getPopulationDensity());
                 		map().setToolTipText(map().getPosition(p).toString() + " : " + info.getPointOfInterest().getPopulationDensity());
+                		for(int i= 0; i < dots.length; i++) {
+                			if (dots[i] != null) {
+                				map().removeMapMarker(dots[i]);
+                			}
+                			PopulationPoint pp = info.getPopulationPoint(i);
+                			MapMarkerDot ppd = new MapMarkerDot(Math.round(pp.getX())+", " + Math.round(pp.getY()),new Coordinate(pp.getX(), pp.getY()));
+                			map().addMapMarker(ppd);
+                			dots[i] = ppd;
+                		}
                 	}
                 }
             }
