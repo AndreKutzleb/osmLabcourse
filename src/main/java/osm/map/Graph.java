@@ -1,19 +1,14 @@
 package osm.map;
 
-import it.unimi.dsi.fastutil.ints.IntList;
-
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntConsumer;
 
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.tuple.Pair;
 
 import osm.preprocessing.PipelineParts.PipelinePaths;
 import osmlab.sink.ByteUtils;
 import osmlab.sink.FormatConstants;
-import osmlab.sink.GeoUtils;
 import osmlab.sink.GeoUtils.FloatPoint;
 
 public class Graph {
@@ -30,11 +25,6 @@ public class Graph {
 	final int[] data;
 	
 	final int nodeCount;
-
-	
-	final int[] aggregateOffsets;
-	
-	final int[] aggregateData;
 	
 	/**
 	 * Loads the graph datastructure from disc.
@@ -49,25 +39,19 @@ public class Graph {
 
 		PipelinePaths paths = new PipelinePaths(sourceFilePath);
 
-		int[] aggregateData = SerializationUtils
-				.deserialize(new FileInputStream(paths.AGGREGATE_DATA_ARRAY));
-		int[] aggregateOffsets = SerializationUtils
-				.deserialize(new FileInputStream(paths.AGGREGATE_OFFSET_ARRAY));
-
+	
 		int[] data = SerializationUtils.deserialize(new FileInputStream(
 				paths.DATA_ARRAY));
 		int[] offsets = SerializationUtils.deserialize(new FileInputStream(
 				paths.OFFSET_ARRAY));
 
-		return new Graph(data, offsets, aggregateData, aggregateOffsets);
+		return new Graph(data, offsets);
 		
 	}
 
-	public Graph(int[] data, int[] offsets, int[] aggregateData, int[] aggregateOffsets) {
+	public Graph(int[] data, int[] offsets) {
 		this.data = data;
 		this.offsets = offsets;
-		this.aggregateData = aggregateData;
-		this.aggregateOffsets = aggregateOffsets;
 		this.nodeCount = offsets.length;
 	}
 
@@ -232,9 +216,6 @@ public class Graph {
 		return neighbourCountInternal(node, offsets);
 		}
 	
-	public int neighbourCountAggregate(int node) {
-		return neighbourCountInternal(node, aggregateOffsets);
-		}
 	
 	private int neighbourCountInternal(int node, int[] offsets) {
 		int offset = offsets[node] + 2; // skip lat and lon
@@ -294,43 +275,7 @@ public class Graph {
 		}
 	}
 	
-	private int getUpperLimitAggregate(int node) {
-		if (node + 1 == getNodeCount()) {
-			return getNodeCount();
-		} else {
-			return aggregateOffsets[node + 1];
-		}
-	}
-
-	/**
-	 * Returns two distinct nodes if the given node is not included in the aggregated nodes.  These nodes are the aggregate nodes closest to this node.
-	 * if the given node is an aggregate node already, then returns the pair with the same number.
-	 */
-	public Pair<Integer, Integer> findClosestAggregateNodes (int node){
-		int neighbourCount = neighbourCountAggregate(node);
-		// if neighbourcount == 0 then this node is not part of aggregate datastructure
-		Pair<Integer, Integer> p;
-		AtomicInteger left = new AtomicInteger();
-		AtomicInteger right = new AtomicInteger();
-
-		if(neighbourCount == 0) {
-			forEachNeighbourOf(node, neighbour -> {
-				if(left.get() == 0) {
-					left.set(neighbour);
-				} else {
-					right.set(neighbour);
-				}
-			});
-			
-			
-			
-			// TODO FIXME find out if aggregate can destroy T-section
-			
-			
-		} else {
-			return Pair.of(node, node);
-		}
-	}
+	
 
 
 }

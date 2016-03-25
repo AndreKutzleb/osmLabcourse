@@ -39,6 +39,8 @@ import osm.map.Dijkstra;
 import osm.map.Dijkstra.TravelType;
 import osm.map.Graph;
 import osmlab.OSMFileConverter;
+import population.PopulationData;
+import population.PopulationInfo;
 
 /**
  * Demonstrates the usage of {@link JMapViewer}
@@ -146,6 +148,9 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
                 }
             }
         });
+        
+    	final PopulationData populationData = PopulationData.parseFromFile("deuds00ag.asc");
+
 
         map().addMouseMotionListener(new MouseAdapter() {
             @Override
@@ -157,7 +162,15 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
                 } else {
                     map().setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
                 }
-                if (showToolTip.isSelected()) map().setToolTipText(map().getPosition(p).toString());
+                if (showToolTip.isSelected()) {
+                	PopulationInfo info = populationData.closestDataForCoordinate((float) map().getPosition(p).getLat(), (float)map().getPosition(p).getLon());
+                	if(info == null) {
+                		map().setToolTipText(map().getPosition(p).toString());                		
+                	} else {
+                		System.out.println("popInfo = " + info.getPointOfInterest().getPopulationDensity());
+                		map().setToolTipText(map().getPosition(p).toString() + " : " + info.getPointOfInterest().getPopulationDensity());
+                	}
+                }
             }
         });
     }

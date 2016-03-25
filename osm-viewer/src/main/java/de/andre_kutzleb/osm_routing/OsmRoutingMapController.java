@@ -34,6 +34,7 @@ import osm.map.Graph;
 import osm.map.GraphClickFinder;
 import osm.map.Route;
 import osmlab.sink.GeoUtils.FloatPoint;
+import population.PopulationData;
 import de.andre_kutzleb.osmlab.data.DijkstraWorker;
 
 /**
@@ -68,6 +69,8 @@ public class OsmRoutingMapController extends JMapController implements
 	private final RoutingOptions options;
 
 //	private final Progress progress;
+	
+	final PopulationData populationData = PopulationData.parseFromFile("deuds00ag.asc");
 	
 
 	public OsmRoutingMapController(JMapViewer map, RoutingOptions options) throws IOException {
@@ -111,8 +114,10 @@ public class OsmRoutingMapController extends JMapController implements
 
 
 			
+			
 			boolean leftMouse = e.getButton() == MouseEvent.BUTTON1;
-
+			
+			
 			if (leftMouse) {
 				try {
 					onLeftClick(clickNextPt);
@@ -132,11 +137,44 @@ public class OsmRoutingMapController extends JMapController implements
 				stopDotNode = clickNextPt;
 				map.addMapMarker(stopDot);
 
+				
 			}
-			if (true) {
-				return;
-			}	
+			
+			float range = (float) (populationData.getMaxDensity() - populationData.getMinDensity());
+			
+			populationData.forEachCell((coords, val) -> {
+				if(val > 0) {
+					MapMarkerDot dot = new MapMarkerDot(new Coordinate(coords.getX(), coords.getY()));
+					
+					float tVal = (float) ((val - (populationData.getMinDensity()))/range);
+					System.out.println(tVal);
+					dot.setColor(new Color(tVal,1-tVal,0));
+					map.addMapMarker(dot);					
+				}
+			});
+//			Rectangle2D coveredArea = populationData.getCoveredArea();
+//			
+//			    Coordinate a = new Coordinate(coveredArea.getMinY(),coveredArea.getMinX());
+//				Coordinate b = new Coordinate(coveredArea.getMaxY(), coveredArea.getMaxX());
+//				Coordinate c = new Coordinate(coveredArea.getMinY(), coveredArea.getMaxX());
+//				Coordinate d = new Coordinate(coveredArea.getMaxY(), coveredArea.getMinX());
+//				
+//				MapMarkerDot dot = new MapMarkerDot("A"+ a.toString(), a);
+//				map.addMapMarker(dot);
+//				dot = new MapMarkerDot("B"+ b.toString(), b);
+//				map.addMapMarker(dot);
+//				dot = new MapMarkerDot("C"+ c.toString(), c);
+//				map.addMapMarker(dot);
+//				dot = new MapMarkerDot("D"+ d.toString(), d);
+//				map.addMapMarker(dot);
+//
+//				MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, c);
+//				map.addMapPolygon(routPoly);
+//
+//				 routPoly = new MapPolygonImpl("", a, b, d);
+//				map.addMapPolygon(routPoly);
 		}
+		
 	}
 	
 	private final Semaphore dijkstraMutex = new Semaphore(4);

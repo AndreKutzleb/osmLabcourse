@@ -293,7 +293,7 @@ public class CreateDataArray extends DataProcessor {
 
 				private void calculateDistances() {
 
-					Graph graph = new Graph(data, offsetArray, aggregateData, aggregateOffsetArray);
+					Graph graph = new Graph(data, offsetArray);
 
 					for (int nodeId = 0; nodeId < nodeCount; nodeId++) {
 

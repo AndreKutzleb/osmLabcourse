@@ -1,3 +1,4 @@
+package population;
 import java.awt.geom.Point2D;
 
 
@@ -18,6 +19,28 @@ public class PopulationInfo {
 		this.rightLower = rightLower;
 		this.pointOfInterest = pointOfInterest;
 	}
+
+	public PopulationPoint getLeftUpper() {
+		return leftUpper;
+	}
+
+	public PopulationPoint getRightUpper() {
+		return rightUpper;
+	}
+
+	public PopulationPoint getLeftLower() {
+		return leftLower;
+	}
+
+	public PopulationPoint getRightLower() {
+		return rightLower;
+	}
+
+	public PopulationPoint getPointOfInterest() {
+		return pointOfInterest;
+	}
+	
+	
 
 	
 	

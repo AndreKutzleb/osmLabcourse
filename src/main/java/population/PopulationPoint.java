@@ -1,3 +1,4 @@
+package population;
 import java.awt.geom.Point2D;
 
 import osmlab.sink.GeoUtils;
@@ -29,5 +30,8 @@ public class PopulationPoint extends Point2D {
 		this.y = y;
 	}
 	
+	public double getPopulationDensity() {
+		return populationDensity;
+	}
 	
 }
