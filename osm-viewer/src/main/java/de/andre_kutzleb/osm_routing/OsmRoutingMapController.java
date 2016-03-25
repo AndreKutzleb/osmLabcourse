@@ -101,6 +101,7 @@ public class OsmRoutingMapController extends JMapController implements
 	MapMarkerDot stopDot = null;
 	int stopDotNode = 0;
 	
+	MapMarkerDot[] dots = new MapMarkerDot[5];
 
 	@Override
 	public void mouseClicked(MouseEvent e) {
@@ -148,8 +149,11 @@ public class OsmRoutingMapController extends JMapController implements
 					MapMarkerDot dot = new MapMarkerDot(new Coordinate(coords.getX(), coords.getY()));
 					
 					float tVal = (float) ((val - (populationData.getMinDensity()))/range);
+					tVal = (float) Math.atan(tVal*8)/1.5f;
 					System.out.println(tVal);
-					dot.setColor(new Color(tVal,1-tVal,0));
+					Color col = new Color(tVal,(1-tVal)*0.75f,0);
+					dot.setColor(col);
+					dot.setBackColor(col);
 					map.addMapMarker(dot);					
 				}
 			});
