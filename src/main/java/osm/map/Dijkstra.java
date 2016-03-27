@@ -25,10 +25,15 @@ public class Dijkstra {
 		CAR_SHORTEST("Car Shortest", Color.RED,false), 
 		CAR_FASTEST("Car Fastest", Color.BLUE,false), 
 		HOP_DISTANCE("Hop Distance", Color.MAGENTA,false),
-		PEDESTRIAN_FF("Pedestrian FF", Color.BLACK,true), 
-		CAR_SHORTEST_FF("Car Shortest FF", Color.RED,true), 
-		CAR_FASTEST_FF("Car Fastest FF", Color.BLUE,true), 
-		HOP_DISTANCE_FF("Hop Distance FF", Color.MAGENTA,true);
+		PEDESTRIAN_POPULATION("Pedestrian Population", Color.RED, false),
+		CAR_SHORTEST_POPULATION("Car Shortest Population",Color.WHITE, false),
+		CAR_FASTEST_POPULATION("Car Fastest Population", Color.WHITE, false);
+//		POPULATION_GOOD("Population good", Color.GREEN, false),
+//		POPULATION_BAD("Population bad", Color.WHITE, false),
+//		PEDESTRIAN_FF("Pedestrian FF", Color.BLACK,true), 
+//		CAR_SHORTEST_FF("Car Shortest FF", Color.RED,true), 
+//		CAR_FASTEST_FF("Car Fastest FF", Color.BLUE,true), 
+//		HOP_DISTANCE_FF("Hop Distance FF", Color.MAGENTA,true), 
 		
 		
 		private TravelType(String name, Color color, boolean fastFollow) {
@@ -117,12 +122,12 @@ public class Dijkstra {
 			byte decodeSpeed = ByteUtils.decodeSpeed(edgeMetaData);
 			edgeSpeeds.add(decodeSpeed);
 
-			float distance = determineDistance(to, from);
+			float distance = determineDistance(to, from,0,false);
 			distances.add(distance);
 		}
 	}
 
-	public void precalculateDijkstra(int fromNode, IntConsumer progressConsumer) {
+	public void precalculateDijkstra(int fromNode, IntConsumer progressConsumer, int populationMultiplier, boolean preferPopulation) {
 
 		long beforeResetData = System.currentTimeMillis();
 		resetData();
@@ -179,7 +184,7 @@ public class Dijkstra {
 
 				int distanceToStartOfNeighbour = refArray[neighbour];
 				int distanceFromNext = distanceToVisited
-						+ determineDistance(next, neighbour);
+						+ determineDistance(next, neighbour, populationMultiplier, preferPopulation);
 
 				boolean neighbourInQueue = queue.contains(neighbour);
 
@@ -201,7 +206,7 @@ public class Dijkstra {
 					while(!visited[toSkip] && graph.neighbourCount(toSkip) == 2) {
 						visitedCount++;
 						visited[toSkip] = true;
-						refArray[toSkip] = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip);
+						refArray[toSkip] = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip,populationMultiplier, preferPopulation);
 						successor[toSkip] = alreadyVisited;
 						
 						int nextToVisit = graph.neighbourOf(toSkip, alreadyVisited);
@@ -209,12 +214,12 @@ public class Dijkstra {
 						toSkip = nextToVisit;
 					}
 					if(!visited[toSkip] && !queue.contains(toSkip)) {
-						refArray[toSkip] = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip);
+						refArray[toSkip] = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip,populationMultiplier, preferPopulation);
 						successor[toSkip] = alreadyVisited;
 						queue.enqueue(toSkip);
 					} else if (queue.contains(toSkip)){
 						// need to update if better
-						int distanceToSkip = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip);
+						int distanceToSkip = refArray[alreadyVisited] + determineDistance(alreadyVisited, toSkip,populationMultiplier, preferPopulation);
 						boolean improvement = distanceToSkip < refArray[toSkip];
 
 						if (improvement) {
@@ -245,7 +250,40 @@ public class Dijkstra {
 
 	int A_LARGE_NUMBER = 100000;
 
-	private int determineDistance(int from, int to) {
+	/**
+	 * 
+
+pop bad:
+pop 1   * 0 =  0  * 100 = 100 + 0   
+pop 1   * 1 =  1  * 100 = 100 + 100 
+pop 1   * 5 =  5  * 100 = 100 + 500
+pop 1   * 10 = 10 * 100 = 100 + 1000
+
+pop .5   * 0 =  0    * 100 = 100 + 0   
+pop .5   * 1 =  .5   * 100 = 100 + 50 
+pop .5   * 5 =  2.5  * 100 = 100 + 250
+pop .5   * 10 = 5    * 100 = 100 + 500
+
+pop good:
+
+pop 1   * 0 =  0  * 100 = 100 + (0-0)   
+pop 1   * 1 =  1  * 100 = 100 + (100-100)  
+pop 1   * 5 =  5  * 100 = 100 + (500-500)
+pop 1   * 10 = 10 * 100 = 100 + (1000-1000)
+
+pop .5   * 0 =  0    * 100 = 100 + (0-0)   
+pop .5   * 1 =  .5   * 100 = 100 + (100-50) 
+pop .5   * 5 =  2.5  * 100 = 100 + (500-250)
+pop .5   * 10 = 5    * 100 = 100 + (1000-500)
+
+
+	 * 
+	 * @param from
+	 * @param to
+	 * @param populationMultiplier
+	 * @return
+	 */
+	private int determineDistance(int from, int to, int populationMultiplier, boolean preferPopulation) {
 
 		//
 		int edgeMetaData = graph.edgeMetaData(from, to);
@@ -254,31 +292,34 @@ public class Dijkstra {
 
 		float distanceFloat = graph.distance(from, to);
 
-		int distance = (int) Math.max(1, distanceFloat);
+	//	int distance = (int) Math.max(1, distanceFloat);
 
 		switch (travelType) {
 			case PEDESTRIAN : 
-			case PEDESTRIAN_FF: {
+			//case PEDESTRIAN_FF: 
+			{
 				if (pedestrian) {
-					return distance;
+					return (int) Math.max(1, distanceFloat);
 				} else {
 					return A_LARGE_NUMBER;
 				}
 			}
 
 			case CAR_SHORTEST :
-			case CAR_SHORTEST_FF : {
+			//case CAR_SHORTEST_FF : 
+			{
 				if (speed == 0) {
 					return A_LARGE_NUMBER;
 				} else {
 
-					return distance;
+					return (int) Math.max(1, distanceFloat);
 				}
 			}
 			case CAR_FASTEST :
-			case CAR_FASTEST_FF : {
+			// case CAR_FASTEST_FF : 
+			{
 				if (speed == 0) {
-					return distance + A_LARGE_NUMBER;
+					return (int) (Math.max(1, distanceFloat) + A_LARGE_NUMBER);
 				} else {
 
 					// for car fastest, we do not use millimeters as metric, but
@@ -306,8 +347,94 @@ public class Dijkstra {
 				}
 			}
 			case HOP_DISTANCE :
-			case HOP_DISTANCE_FF :
+			//case HOP_DISTANCE_FF :
 				return 1;
+			
+
+			case PEDESTRIAN_POPULATION:
+			{
+				if (pedestrian) {
+					
+					float population = graph.population[to];
+					float popCost = populationMultiplier * population
+							* distanceFloat;
+					
+					float actualCost;
+					if (preferPopulation) {
+						float worstCaseCost = populationMultiplier
+								* distanceFloat;
+						actualCost = distanceFloat + (worstCaseCost - popCost);
+					} else {
+						actualCost = distanceFloat + popCost;
+					}
+					return (int) Math.max(1, actualCost);
+
+				} else {
+					return A_LARGE_NUMBER;
+				}
+			}
+			
+			case CAR_SHORTEST_POPULATION :
+				//case CAR_SHORTEST_FF : 
+				{
+					if (speed == 0) {
+						return A_LARGE_NUMBER;
+					} else {
+						
+						
+						float population = graph.population[to];
+						float popCost = populationMultiplier * population
+								* distanceFloat;
+						
+						float actualCost;
+						if (preferPopulation) {
+							float worstCaseCost = populationMultiplier
+									* distanceFloat;
+							actualCost = distanceFloat + (worstCaseCost - popCost);
+						} else {
+							actualCost = distanceFloat + popCost;
+						}
+						return (int) Math.max(1, actualCost);
+					}
+				}
+			case CAR_FASTEST_POPULATION : 
+			{
+				
+				if (speed == 0) {
+					return (int) (Math.max(1, distanceFloat) + A_LARGE_NUMBER);
+				} else {
+
+					// for car fastest, we do not use millimeters as metric, but
+					// milliseconds to cross the distance with the given max
+					// speed
+
+					float kmh = AbstractHighwaySink.speedBitsToKmh(speed);
+
+					float secondsPerMeter = 3.6f / kmh;
+					
+					
+					float population = graph.population[to];
+					float popCost = populationMultiplier * population
+							* distanceFloat;
+					
+					float actualCost;
+					if (preferPopulation) {
+						float worstCaseCost = populationMultiplier
+								* distanceFloat;
+						actualCost = distanceFloat + (worstCaseCost - popCost);
+					} else {
+						actualCost = distanceFloat + popCost;
+					}
+					
+					int timeTakenInSeconds = Math.round(actualCost
+							* secondsPerMeter);
+
+					timeTakenInSeconds = Math.max(1, timeTakenInSeconds);
+
+					return timeTakenInSeconds;
+				}
+			}
+				
 
 			default :
 				throw new IllegalStateException();

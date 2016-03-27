@@ -26,6 +26,8 @@ import osmlab.sink.FormatConstants;
 import osmlab.sink.GeoUtils;
 import osmlab.sink.OsmUtils;
 import osmlab.sink.OsmUtils.TriConsumer;
+import population.PopulationData;
+import population.PopulationInfo;
 
 public class CreateDataArray extends DataProcessor {
 
@@ -61,6 +63,9 @@ public class CreateDataArray extends DataProcessor {
 				ObjectOutputStream offsetArrayStream = new ObjectOutputStream(
 						new BufferedOutputStream(new FileOutputStream(
 								paths.OFFSET_ARRAY)));
+				ObjectOutputStream populationArrayStream = new ObjectOutputStream(
+						new BufferedOutputStream(new FileOutputStream(
+								paths.POPULATION_ARRAY)));
 
 				ObjectOutputStream aggregateDataArrayStream = new ObjectOutputStream(
 						new BufferedOutputStream(new FileOutputStream(
@@ -81,6 +86,13 @@ public class CreateDataArray extends DataProcessor {
 			int aggregateDataSize = aggregateDataArraySize.readInt();
 			int[] aggregateOffsetArray = new int[nodeCount];
 			int[] aggregateData = new int[aggregateDataSize];
+			
+			float[] populationDataRaw = new float[nodeCount];
+	    	final PopulationData populationData = PopulationData.parseFromFile("deuds00ag.asc");
+	    	final float popMin = (float) populationData.getMinDensity();
+	    	final float popRange = (float) (populationData.getMaxDensity() - popMin);
+	    	
+
 
 			for (int i = 0; i < nodeCount; i++) {
 				allNodes[i] = highwayNodesSorted.readLong();
@@ -243,6 +255,9 @@ public class CreateDataArray extends DataProcessor {
 								.getLongitude());
 					}			
 				}
+				
+				int noPopdataPresent = 0;
+				
 
 				private void handleNormal(Node node) {
 					// if the node is part of a highway, we will find it with a
@@ -260,12 +275,33 @@ public class CreateDataArray extends DataProcessor {
 								.getLatitude());
 						data[offset + 1] = Float.floatToRawIntBits((float) node
 								.getLongitude());
-					}		
+
+						PopulationInfo closestDataForCoordinate = populationData.closestDataForCoordinate((float) node.getLatitude(), (float)node.getLongitude());
+						if(closestDataForCoordinate == null) {
+							noPopdataPresent++;
+							double popDense = populationData.getAvgDensity();
+							double normalizedPopDense = (popDense - popMin) / popRange;
+							populationDataRaw[indexOfNode] = (float) normalizedPopDense;							
+	
+						} else {
+							double popDense = closestDataForCoordinate.getPointOfInterest().getPopulationDensity();
+							double normalizedPopDense = (popDense - popMin) / popRange;
+							populationDataRaw[indexOfNode] = (float) normalizedPopDense;							
+						}
+					}
+					
 				}
 
 				@Override
 				public void complete() {
+					
+					int nodesWithPopdata = nodeCount - noPopdataPresent;
+					
+					float percentPresent = (nodesWithPopdata / (float) (nodeCount));
+					percentPresent*=100;
+					
 
+					System.out.println("For "+ percentPresent+"% of nodes population data was found. Used avg density of " + populationData.getAvgDensity()+" for the rest." );
 					calculateDistances();
 					// Write our final datastructures to disk as serialized java
 					// arrays - offsetarray and data array.
@@ -285,6 +321,9 @@ public class CreateDataArray extends DataProcessor {
 								-1, -1);
 						aggregateOffsetArrayStream.writeObject(aggregateOffsetArray);
 						
+						
+						populationArrayStream.writeObject(populationDataRaw);
+						
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -293,7 +332,7 @@ public class CreateDataArray extends DataProcessor {
 
 				private void calculateDistances() {
 
-					Graph graph = new Graph(data, offsetArray);
+					Graph graph = new Graph(data, offsetArray,populationDataRaw);
 
 					for (int nodeId = 0; nodeId < nodeCount; nodeId++) {
 

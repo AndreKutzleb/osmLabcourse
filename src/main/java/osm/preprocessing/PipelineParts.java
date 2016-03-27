@@ -28,6 +28,7 @@ public class PipelineParts {
 		public final String AGGREGATE_DATA_ARRAY_SIZE;
 		public final String AGGREGATE_DATA_ARRAY;
 		public final String AGGREGATE_OFFSET_ARRAY;
+		public final String POPULATION_ARRAY;
 		
 		public PipelinePaths(String sourceFilePath) {
 			
@@ -54,6 +55,7 @@ public class PipelineParts {
 			AGGREGATE_DATA_ARRAY_SIZE =  base + "aggregate_dataarray.size";
 			AGGREGATE_OFFSET_ARRAY = 	 base + "aggregate_offsetarray.data";
 			AGGREGATE_DATA_ARRAY =		 base + "aggregate_dataarray.data";
+			POPULATION_ARRAY = 			 base + "population.data";
 			
 		}
 	}

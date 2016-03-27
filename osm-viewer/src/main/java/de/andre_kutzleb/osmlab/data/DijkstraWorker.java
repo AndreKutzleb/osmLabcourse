@@ -12,12 +12,16 @@ public class DijkstraWorker extends SwingWorker<Integer, String> {
 	private final Dijkstra dijkstra;
 	private int startNode;
 	private final Semaphore dijkstraMutex;
+	private int populationMultiplier;
+	private boolean preferPopulation;
 
 	public DijkstraWorker(Dijkstra dikjstra, int startNode,
-			Semaphore dijkstraMutex) {
+			Semaphore dijkstraMutex, int populationMultiplier, boolean preferPopulation) {
 		this.dijkstra = dikjstra;
 		this.startNode = startNode;
 		this.dijkstraMutex = dijkstraMutex;
+		this.populationMultiplier = populationMultiplier;
+		this.preferPopulation = preferPopulation;
 	}
 
 	@Override
@@ -25,7 +29,7 @@ public class DijkstraWorker extends SwingWorker<Integer, String> {
 
 		try {
 			Thread.currentThread().setName("DijkstraWorker " + this.dijkstra.getName());
-			dijkstra.precalculateDijkstra(startNode, this::setProgress);
+			dijkstra.precalculateDijkstra(startNode, this::setProgress,populationMultiplier, preferPopulation);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {

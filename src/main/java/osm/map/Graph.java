@@ -24,6 +24,8 @@ public class Graph {
 	 */
 	final int[] data;
 	
+	final float[] population;
+	
 	final int nodeCount;
 	
 	/**
@@ -44,14 +46,17 @@ public class Graph {
 				paths.DATA_ARRAY));
 		int[] offsets = SerializationUtils.deserialize(new FileInputStream(
 				paths.OFFSET_ARRAY));
+		
+		float[] population = SerializationUtils.deserialize(new FileInputStream(paths.POPULATION_ARRAY));
 
-		return new Graph(data, offsets);
+		return new Graph(data, offsets,population);
 		
 	}
 
-	public Graph(int[] data, int[] offsets) {
+	public Graph(int[] data, int[] offsets, float[] population) {
 		this.data = data;
 		this.offsets = offsets;
+		this.population = population;
 		this.nodeCount = offsets.length;
 	}
 

@@ -32,6 +32,7 @@ public class PopulationData {
 			double maxDensity = Integer.MIN_VALUE;
 			
 
+			double densitySum = 0;
 			
 			double[][] popData = new double[nrows][ncols];
 				for (int row = 0; row < nrows; row++) {
@@ -40,12 +41,13 @@ public class PopulationData {
 					if(popData[row][col] >= 0) {
 						minDensity = Math.min(minDensity, popData[row][col]);
 						maxDensity = Math.max(maxDensity, popData[row][col]);
+						densitySum+=popData[row][col];
 					}
 				}
 			}
-
+				double avgDensity = densitySum / (nrows*ncols);
 			return new PopulationData(ncols, nrows, xllcorner, yllcorner,
-					cellsize, NODATA_value, popData,minDensity, maxDensity);
+					cellsize, NODATA_value, popData,minDensity, maxDensity, avgDensity);
 		}
 
 	}
@@ -59,6 +61,7 @@ public class PopulationData {
 	private double[][] popData;
 	private double minDensity;
 	private double maxDensity;
+	private double avgDensity;
 	
 	
 
@@ -114,7 +117,7 @@ public class PopulationData {
 	
 
 	public PopulationData(int ncols, int nrows, int xllcorner, int yllcorner,
-			double cellsize, int NODATA_value, double[][] popData, double minDensity, double maxDensity) {
+			double cellsize, int NODATA_value, double[][] popData, double minDensity, double maxDensity, double avgDensity) {
 		this.ncols = ncols;
 		this.nrows = nrows;
 		this.xllcorner = xllcorner;
@@ -124,6 +127,7 @@ public class PopulationData {
 		this.NODATA_value = NODATA_value;
 		this.minDensity = minDensity;
 		this.maxDensity = maxDensity;
+		this.avgDensity = avgDensity;
 	}
 
 	@Override
@@ -241,6 +245,10 @@ public class PopulationData {
 		
 		
 		return new PopulationPoint(savLat, savLon, interpolated);
+	}
+
+	public double getAvgDensity() {
+		return avgDensity;
 	}
 
 //	public static PopulationPoint interpolatePopulation(float lat, float lon, PopulationPoint... points) {

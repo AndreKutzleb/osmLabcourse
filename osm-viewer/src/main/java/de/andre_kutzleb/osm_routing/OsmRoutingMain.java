@@ -2,6 +2,7 @@
 package de.andre_kutzleb.osm_routing;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
@@ -13,7 +14,10 @@ import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -22,6 +26,10 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.JRadioButton;
+import javax.swing.JSlider;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileFilter;
 
 import org.openstreetmap.gui.jmapviewer.Coordinate;
@@ -31,6 +39,7 @@ import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.OsmTileLoader;
 import org.openstreetmap.gui.jmapviewer.events.JMVCommandEvent;
 import org.openstreetmap.gui.jmapviewer.interfaces.JMapViewerEventListener;
+import org.openstreetmap.gui.jmapviewer.interfaces.MapMarker;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.BingAerialTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.MapQuestOpenAerialTileSource;
@@ -118,7 +127,8 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
         panelTop.add(tileSourceSelector);
 
 
-        
+    	final PopulationData populationData = PopulationData.parseFromFile("deuds00ag.asc");
+
         map().setTileLoader(new OsmTileLoader(map(), cacheFolder, doCaching));
         map().setMapMarkerVisible(true);
         map().setZoomContolsVisible(true);
@@ -131,7 +141,64 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
             }
         });
         panelTop.add(showToolTip);
-
+     
+        final JCheckBox showPopulation = new JCheckBox("Population Overlay");
+        List<MapMarker> markers = new ArrayList<>();
+        showPopulation.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(showPopulation.isSelected()) {
+                	float range = (float) (populationData.getMaxDensity() - populationData.getMinDensity());
+        			
+        			populationData.forEachCell((coords, val) -> {
+        				if(val > 0) {
+        					MapMarkerDot dot = new MapMarkerDot(new Coordinate(coords.getX(), coords.getY()));
+        					
+        					float tVal = (float) ((val - (populationData.getMinDensity()))/range);
+        					tVal = (float) Math.atan(tVal*8)/1.5f;
+        					System.out.println(tVal);
+        					Color col = new Color(tVal,(1-tVal)*0.75f,0);
+        					dot.setColor(col);
+        					dot.setBackColor(col);
+        					map().addMapMarker(dot);	
+        					markers.add(dot);
+        				}
+        			});
+                } else {
+                	markers.forEach(m -> map().removeMapMarker(m));
+                	markers.clear();
+                }
+            }
+        });
+        panelTop.add(showPopulation);
+        
+        
+        JSlider populationModifier = new JSlider(JSlider.HORIZONTAL,0,10,0);
+        populationModifier.setMajorTickSpacing(1);
+        populationModifier.setPaintTicks(true);
+        populationModifier.setPaintLabels(true);
+        JRadioButton prefPop = new JRadioButton("Prefer Population");
+        JRadioButton avoidPop = new JRadioButton("Avoid Population");
+        
+        prefPop.setSelected(true);
+        ButtonGroup popSelect = new ButtonGroup();
+        
+        ActionListener l = a -> map().setPreferPopulation(prefPop.isSelected());
+        l.actionPerformed(null); //trigger initial set of variable
+       prefPop.addActionListener(l);
+       avoidPop.addActionListener(l);
+        popSelect.add(avoidPop);
+        popSelect.add(prefPop);
+        
+        panelTop.add(prefPop);
+        panelTop.add(avoidPop);
+        
+        
+        populationModifier.addChangeListener(e -> {
+        	map().setPopulationModifier(populationModifier.getValue());
+        	
+        });
+        panelTop.add(populationModifier);
         
 
         panelTop.add(button);
@@ -152,7 +219,6 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
             }
         });
         
-    	final PopulationData populationData = PopulationData.parseFromFile("deuds00ag.asc");
 
 		MapMarkerDot[] dots = new MapMarkerDot[5];
 
@@ -186,7 +252,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
             }
         });
     }
-
+   
     private static RoutingOptions initializeRouting(TravelType[] travelTypes) throws IOException {
     	Graph graph = null;
 
@@ -250,7 +316,7 @@ public class OsmRoutingMain extends JFrame implements JMapViewerEventListener  {
      */
     public static void main(String[] args) throws IOException {
     	
-    	TravelType[] types = new TravelType[] {TravelType.CAR_SHORTEST, TravelType.CAR_FASTEST, TravelType.PEDESTRIAN};
+    	TravelType[] types = new TravelType[] {/*TravelType.CAR_SHORTEST, TravelType.CAR_FASTEST, TravelType.PEDESTRIAN,*/ TravelType.PEDESTRIAN_POPULATION, TravelType.PEDESTRIAN};
     //	types = new TravelType[] {TravelType.CAR_SHORTEST_FF, TravelType.CAR_FASTEST_FF, TravelType.PEDESTRIAN_FF};
 
     	  	JFrame frame = new JFrame("OSM viewer");

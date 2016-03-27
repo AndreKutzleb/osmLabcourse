@@ -101,6 +101,13 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
 
     protected EventListenerList evtListenerList = new EventListenerList();
 
+	private int populationModifier;
+
+	private boolean preferPopulation;
+
+	public boolean getPreferPopulation() {
+		return preferPopulation;
+	}
     /**
      * Creates a standard {@link JMapViewer} instance that can be controlled via
      * mouse: hold right mouse button for moving, double click left mouse button
@@ -1151,4 +1158,18 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
             }
         }
     }
+
+	public void setPopulationModifier(int populationModifier) {
+		this.populationModifier = populationModifier;
+	}
+	
+	public int getPopulationModifier() {
+		return populationModifier;
+	}
+
+	public void setPreferPopulation(boolean selected) {
+		this.preferPopulation = selected;
+	}
+	
+	
 }

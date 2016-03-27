@@ -60,20 +60,27 @@ public class Route {
 		
 		switch (dijkstra.travelType) {
 			case CAR_FASTEST :
-			case CAR_FASTEST_FF :
+//			case CAR_FASTEST_FF :
 			case CAR_SHORTEST :
-			case CAR_SHORTEST_FF :
+//			case CAR_SHORTEST_FF :
 			case HOP_DISTANCE :
-			case HOP_DISTANCE_FF : {
+			case CAR_FASTEST_POPULATION:
+			case CAR_SHORTEST_POPULATION:
+			
+//			case HOP_DISTANCE_FF : 
+			{
 				kmh = AbstractHighwaySink.speedBitsToKmh(edgeSpeed);
 				break;
 
 			}
 			case PEDESTRIAN :
-			case PEDESTRIAN_FF : {
+			case PEDESTRIAN_POPULATION:
+//			case PEDESTRIAN_FF :
+			{
 				kmh = 5;
 				break;
 			}
+			
 			default :
 				throw new IllegalStateException();
 		}

@@ -142,21 +142,7 @@ public class OsmRoutingMapController extends JMapController implements
 				
 			}
 			
-			float range = (float) (populationData.getMaxDensity() - populationData.getMinDensity());
-			
-			populationData.forEachCell((coords, val) -> {
-				if(val > 0) {
-					MapMarkerDot dot = new MapMarkerDot(new Coordinate(coords.getX(), coords.getY()));
-					
-					float tVal = (float) ((val - (populationData.getMinDensity()))/range);
-					tVal = (float) Math.atan(tVal*8)/1.5f;
-					System.out.println(tVal);
-					Color col = new Color(tVal,(1-tVal)*0.75f,0);
-					dot.setColor(col);
-					dot.setBackColor(col);
-					map.addMapMarker(dot);					
-				}
-			});
+		
 //			Rectangle2D coveredArea = populationData.getCoveredArea();
 //			
 //			    Coordinate a = new Coordinate(coveredArea.getMinY(),coveredArea.getMinX());
@@ -201,7 +187,7 @@ public class OsmRoutingMapController extends JMapController implements
 		canRoute = false;
 
 		Map<TravelType,DijkstraWorker> localWorkers = new HashMap<>();
-		options.getRoutingOptions().values().forEach(dijkstra -> localWorkers.put(dijkstra.travelType, new DijkstraWorker(dijkstra, startNode, dijkstraMutex)));
+		options.getRoutingOptions().values().forEach(dijkstra -> localWorkers.put(dijkstra.travelType, new DijkstraWorker(dijkstra, startNode, dijkstraMutex,map.getPopulationModifier(), map.getPreferPopulation())));
 		dijkstraWorkerRefs.putAll(localWorkers);
 		options.getRoutingOptions().values().forEach(dijkstra -> dijkstra.progress.setVisible(true));
 		
