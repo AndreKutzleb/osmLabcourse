@@ -10,6 +10,9 @@ import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.awt.Color;
 import java.util.Arrays;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 import javax.swing.JProgressBar;
@@ -55,6 +58,7 @@ public class Dijkstra {
 	public final boolean[] visited;
 	public final TravelType travelType;
 	private int visitedCount = 0;
+	private final Semaphore workedOn = new Semaphore(1);
 	private final IntHeapIndirectPriorityQueue queue;
 
 	private void resetData() {
@@ -127,8 +131,17 @@ public class Dijkstra {
 		}
 	}
 
-	public void precalculateDijkstra(int fromNode, IntConsumer progressConsumer, int populationMultiplier, boolean preferPopulation) {
+	public void precalculateDijkstra(int fromNode, IntConsumer progressConsumer, int populationMultiplier, boolean preferPopulation, AtomicInteger currentDestination,Consumer<Route> routeHandler, Semaphore dijkstraMutex) {
 
+		try {
+			workedOn.acquire();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		int currentDest = -1;
+		
 		long beforeResetData = System.currentTimeMillis();
 		resetData();
 		long afterResetData = System.currentTimeMillis();
@@ -152,9 +165,18 @@ public class Dijkstra {
 			if (progress > currentProgress) {
 				currentProgress = progress;
 				progressConsumer.accept(currentProgress);
+				int newDest = currentDestination.get();
+				if(newDest != currentDest) {
+					if(visited[newDest]) {
+						currentDest = newDest;
+						Route path = getPath(currentDest);
+						routeHandler.accept(path);
+					}
+				}
 
 				if (Thread.currentThread().isInterrupted()) {
 					System.out.println("thread is interrupted");
+					workedOn.release();
 					return;
 				}
 			}
@@ -241,10 +263,22 @@ public class Dijkstra {
 			}
 
 		}
+		
+		int newDest = currentDestination.get();
+		if(newDest != currentDest) {
+			if(visited[newDest]) {
+				currentDest = newDest;
+				Route path = getPath(currentDest);
+				routeHandler.accept(path);
+			}
+		}
+		
 		progressConsumer.accept(100);
 		long afterDijkstra = System.currentTimeMillis();
 
 		dijkstraDuration = afterDijkstra - afterResetData;
+		
+		workedOn.release();
 
 	}
 
@@ -443,6 +477,14 @@ pop .5   * 10 = 5    * 100 = 100 + (1000-500)
 
 	public String getName() {
 		return travelType.name;
+	}
+
+	public void manuallyTryRoute(int destinationNode, Consumer<Route> routeHandler) {
+		if(workedOn.tryAcquire()) {
+			workedOn.release();
+			routeHandler.accept(getPath(destinationNode));
+		}
+		
 	}
 
 	//

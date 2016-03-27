@@ -13,14 +13,20 @@ import java.awt.event.MouseWheelListener;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import javax.swing.SwingUtilities;
 
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapController;
@@ -28,6 +34,7 @@ import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.MapPolygonImpl;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
+import org.openstreetmap.gui.jmapviewer.interfaces.MapPolygon;
 
 import osm.map.Dijkstra.TravelType;
 import osm.map.Graph;
@@ -68,6 +75,9 @@ public class OsmRoutingMapController extends JMapController implements
 	private final Graph graph;
 	private final RoutingOptions options;
 
+//	private final EnumMap<TravelType, >
+	private final AtomicInteger currentDestination = new AtomicInteger(-1);
+	
 //	private final Progress progress;
 	
 	final PopulationData populationData = PopulationData.parseFromFile("deuds00ag.asc");
@@ -77,6 +87,7 @@ public class OsmRoutingMapController extends JMapController implements
 		super(map);
 		this.graph = options.graph;
 		this.options = options;
+		this.dijkstraMutex  = new Semaphore(options.size());
 	}
 
 	@Override
@@ -168,14 +179,28 @@ public class OsmRoutingMapController extends JMapController implements
 		
 	}
 	
-	private final Semaphore dijkstraMutex = new Semaphore(4);
-	boolean canRoute = false;
+	private final Semaphore dijkstraMutex;
 
 	private final Map<TravelType, DijkstraWorker> dijkstraWorkerRefs = Collections.synchronizedMap(new HashMap<>());
+	
+	private final Map<TravelType, List<MapPolygon>> routes = new HashMap<>();
+	
+	private final Consumer<Route> routeDrawer = route -> {
+		SwingUtilities.invokeLater(() -> {
+			if(routes.get(route.travelType) != null) {
+				routes.remove(route.travelType).forEach(map::removeMapPolygon);
+			}
+			List<MapPolygon> paths = drawPathe(route);
+			routes.put(route.travelType, paths);
+			paths.forEach(map::addMapPolygon);
+		});
+	};
 	
 
 	private void onLeftClick(int startNode) throws InterruptedException {
 
+
+		
 		boolean canCalculate = dijkstraMutex.tryAcquire(options.size());
 
 		if (!canCalculate) {
@@ -184,10 +209,11 @@ public class OsmRoutingMapController extends JMapController implements
 			// will wait for the old tasks to stop
 			dijkstraMutex.acquire(options.size());
 		}
-		canRoute = false;
+		routes.values().forEach(r -> r.forEach(map::removeMapPolygon));
+		routes.clear();
 
 		Map<TravelType,DijkstraWorker> localWorkers = new HashMap<>();
-		options.getRoutingOptions().values().forEach(dijkstra -> localWorkers.put(dijkstra.travelType, new DijkstraWorker(dijkstra, startNode, dijkstraMutex,map.getPopulationModifier(), map.getPreferPopulation())));
+		options.getRoutingOptions().values().forEach(dijkstra -> localWorkers.put(dijkstra.travelType, new DijkstraWorker(dijkstra, startNode, dijkstraMutex,map.getPopulationModifier(), map.getPreferPopulation(), currentDestination, routeDrawer)));
 		dijkstraWorkerRefs.putAll(localWorkers);
 		options.getRoutingOptions().values().forEach(dijkstra -> dijkstra.progress.setVisible(true));
 		
@@ -197,87 +223,70 @@ public class OsmRoutingMapController extends JMapController implements
 				dijkstra.progress.setValue(responsibleWorker.getProgress());	
 				dijkstra.progress.setString(dijkstra.getName() +": " + responsibleWorker.getProgress() + "%");
 			});
-
-			double avgPercent = localWorkers.values().stream().mapToInt(DijkstraWorker::getProgress).average().getAsDouble();
-			// draw temporary direct air line
-			if (stopDot != null) {
-				drawTempLine(startNode, stopDotNode, (float) avgPercent);
-			}
-			
-			boolean stop = !localWorkers.values().stream().filter(d -> !d.isDone()).findAny().isPresent();
-
-			boolean cancel = localWorkers.values().stream().filter(DijkstraWorker::isCancelled).findAny().isPresent();
-
-			if (stop) {
-				
-				canRoute = true;
-			}
-
-			if (stopDot != null && !cancel) {
-				// in case there is already a destination,
-				// instantly show the path
-				onRightClick(stopDotNode);
-			}
-
 		};
 
 		localWorkers.values().forEach(worker -> worker.addPropertyChangeListener(p));
 		localWorkers.values().forEach(DijkstraWorker::execute);
 	
-		map.removeAllMapPolygons();
 	}
 
-	private void drawTempLine(int fromNode, int toNode, float percent) {
-		map.removeAllMapPolygons();
-		Coordinate a = new Coordinate(graph.latOf(fromNode),
-				graph.lonOf(fromNode));
-		FloatPoint percentPoint = graph.pointAtPercent(fromNode, toNode,
-				percent);
-		Coordinate b = new Coordinate(percentPoint.lat, percentPoint.lon);
-
-		MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
-		// Stroke dashed = new BasicStroke(2.0f, BasicStroke.CAP_BUTT,
-		// BasicStroke.JOIN_MITER, 10.0f, new float[]{5f}, 0.0f);
-		//
-		int perc = Math.round(percent);
-		routPoly.setName(perc + "%");
-		routPoly.setColor(Color.DARK_GRAY);
-		map.addMapPolygon(routPoly);
-	}
+//	private void drawTempLine(int fromNode, int toNode, float percent) {
+//		map.removeAllMapPolygons();
+//		Coordinate a = new Coordinate(graph.latOf(fromNode),
+//				graph.lonOf(fromNode));
+//		FloatPoint percentPoint = graph.pointAtPercent(fromNode, toNode,
+//				percent);
+//		Coordinate b = new Coordinate(percentPoint.lat, percentPoint.lon);
+//
+//		MapPolygonImpl routPoly = new MapPolygonImpl("", a, b, b);
+//		// Stroke dashed = new BasicStroke(2.0f, BasicStroke.CAP_BUTT,
+//		// BasicStroke.JOIN_MITER, 10.0f, new float[]{5f}, 0.0f);
+//		//
+//		int perc = Math.round(percent);
+//		routPoly.setName(perc + "%");
+//		routPoly.setColor(Color.DARK_GRAY);
+//		map.addMapPolygon(routPoly);
+//	}
 
 	private boolean onRightClick(int destinationNode) {
-
-		boolean gotLock = dijkstraMutex.tryAcquire(4);
-
-		if (!gotLock) {
-			return false;
-		}
-
-		if (!canRoute) {
-			dijkstraMutex.release(4);
-			return false;
-		}
-		options.getRoutingOptions().values().forEach(d -> {
-			
-			System.out.println(d.travelType.name + " path length:   " + d.getPath(destinationNode).path.size());
-			System.out.println(d.travelType.name + " reset    time: " + d.resetDuration + "ms");
-			System.out.println(d.travelType.name + " dijkstra time: " + d.dijkstraDuration + "ms");
-			System.out.println();	
-		});
 		
-		
-		List<Route> routes = options.getRoutingOptions().values().stream().map(dijkstra -> dijkstra.getPath(destinationNode)).collect(Collectors.toList());
+		routes.values().forEach(r -> r.forEach(map::removeMapPolygon));
+		routes.clear();
 
-		map.removeAllMapPolygons();
+		currentDestination.set(destinationNode);
 		
-		routes.forEach(this::drawPath);
+		options.getRoutingOptions().values().forEach(d -> d.manuallyTryRoute(destinationNode,routeDrawer));
 
-		dijkstraMutex.release(4);
+//
+//		boolean gotLock = dijkstraMutex.tryAcquire(4);
+//		if (!gotLock) {
+//			return false;
+//		}
+//
+//
+//		options.getRoutingOptions().values().forEach(d -> {
+//			
+//			System.out.println(d.travelType.name + " path length:   " + d.getPath(destinationNode).path.size());
+//			System.out.println(d.travelType.name + " reset    time: " + d.resetDuration + "ms");
+//			System.out.println(d.travelType.name + " dijkstra time: " + d.dijkstraDuration + "ms");
+//			System.out.println();	
+//		});
+//		
+//		
+//		List<Route> routes = options.getRoutingOptions().values().stream().map(dijkstra -> dijkstra.getPath(destinationNode)).collect(Collectors.toList());
+//
+//		map.removeAllMapPolygons();
+//		
+////		routes.forEach(this::drawPath);
+//
+//		dijkstraMutex.release(4);
 		return true;
 
 	}
 
-	private void drawPath(Route route) {
+	private List<MapPolygon> drawPathe(Route route) {
+		
+		List<MapPolygon> actualPath = new ArrayList<>();
 		
 		IntList path = route.path;
 
@@ -306,9 +315,10 @@ public class OsmRoutingMapController extends JMapController implements
 				options.getRoutingInformation().get(route.travelType.name).setText(name);
 			}
 			
-			map.addMapPolygon(routPoly);
+			actualPath.add(routPoly);
 
 		}
+		return actualPath;
 	}
 	
 
